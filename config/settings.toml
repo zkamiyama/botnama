@@ -1,0 +1,10 @@
+# Application server configuration
+httpPort = 2101
+cacheDir = "cache/videos"
+maxVideoDurationSec = 600
+maxConcurrentDownloads = 1
+ytDlpPath = "bin/yt-dlp.exe"
+denoPath = "deno"
+ffmpegPath = "bin/ffmpeg.exe"
+ytDlpInstallPath = "bin/yt-dlp.exe"
+mcvAccessToken = ""

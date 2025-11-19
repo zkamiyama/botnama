@@ -1,0 +1,426 @@
+import { Hono } from "hono";
+import { handleDebugComment, ingestComment } from "../services/commentService.ts";
+import { RequestService } from "../services/requestService.ts";
+import { Platform, RequestStatus, ServerSettings } from "../types.ts";
+import { listRecentComments } from "../repositories/requestsRepository.ts";
+import { getSystemInfo, updateYtDlpBinary, updateYtDlpEjs } from "../services/systemService.ts";
+import { DOCK_EVENT, DockEvent, dockEventBus } from "../events/dockEventBus.ts";
+
+const REQUEST_STATUS_SET = new Set<RequestStatus>([
+  "PENDING",
+  "VALIDATING",
+  "REJECTED",
+  "QUEUED",
+  "DOWNLOADING",
+  "READY",
+  "PLAYING",
+  "DONE",
+  "FAILED",
+  "SUSPEND",
+]);
+
+export const createApiRouter = (requestService: RequestService, settings: ServerSettings) => {
+  const api = new Hono();
+  const encoder = new TextEncoder();
+  const streamStatuses: RequestStatus[] = [
+    "QUEUED",
+    "VALIDATING",
+    "DOWNLOADING",
+    "READY",
+    "PLAYING",
+    "FAILED",
+    "REJECTED",
+    "DONE",
+    "SUSPEND",
+  ];
+  const recentCommentLimit = 30;
+
+  const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    !!value && typeof value === "object" && !Array.isArray(value);
+
+  const getStringOrNull = (value: unknown) => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
+  const mapSiteTypeToPlatform = (value: string | null): Platform => {
+    const normalized = (value ?? "").toLowerCase();
+    switch (normalized) {
+      case "nicolive":
+        return "niconico";
+      case "youtubelive":
+        return "youtube";
+      case "twitch":
+        return "twitch";
+      case "twicas":
+        return "twicas";
+      case "mirrativ":
+        return "mirrativ";
+      case "linelive":
+        return "linelive";
+      case "openrec":
+        return "openrec";
+      case "whowatch":
+        return "whowatch";
+      case "showroom":
+        return "showroom";
+      case "mildom":
+        return "mildom";
+      case "bigo":
+        return "bigo";
+      case "periscope":
+        return "periscope";
+      case "mixch":
+        return "mixch";
+      default:
+        return "other";
+    }
+  };
+
+  interface NormalizedMcvPayload {
+    commentId: string | null;
+    platform: Platform;
+    roomId: string | null;
+    userId: string | null;
+    userName: string | null;
+    comment: string;
+    timestamp: number;
+    allowRequestCreation: boolean;
+  }
+
+  type McvNormalizationResult =
+    | { payload: NormalizedMcvPayload }
+    | { skipReason: string }
+    | null;
+
+  const normalizeMcvPayload = (value: unknown): McvNormalizationResult => {
+    if (!isPlainObject(value)) return null;
+    const commentSource = typeof value.comment === "string"
+      ? value.comment
+      : typeof value.message === "string"
+      ? value.message
+      : null;
+    if (!commentSource) return null;
+    const comment = commentSource.trim();
+    if (!comment) return null;
+
+    const metadataValue = value.metadata;
+    const metadata = isPlainObject(metadataValue) ? metadataValue : {};
+    const includeNgUsers = value.includeNgUsers === true;
+    const includeInitialComments = value.includeInitialComments === true;
+    const isNgUser = metadata.isNgUser === true || metadata.isSiteNgUser === true;
+    if (isNgUser && !includeNgUsers) {
+      return { skipReason: "ng-user" };
+    }
+    const isInitialComment = metadata.isInitialComment === true || metadata.isFirstComment === true;
+    if (isInitialComment && !includeInitialComments) {
+      return { skipReason: "initial-comment" };
+    }
+
+    const timestamp = typeof value.timestamp === "number" && Number.isFinite(value.timestamp)
+      ? value.timestamp
+      : Date.now();
+
+    return {
+      payload: {
+        commentId: getStringOrNull(value.messageId),
+        platform: mapSiteTypeToPlatform(typeof value.siteType === "string" ? value.siteType : null),
+        roomId: getStringOrNull(value.roomId),
+        userId: getStringOrNull(value.userId),
+        userName: getStringOrNull(value.userName),
+        comment,
+        timestamp,
+        allowRequestCreation: value.allowRequestCreation === false ? false : true,
+      },
+    };
+  };
+
+  const pushDockEvent = async (event: DockEvent) => {
+    if (event === DOCK_EVENT.SYSTEM) {
+      const info = await getSystemInfo(settings);
+      return { event, payload: info };
+    }
+    if (event === DOCK_EVENT.COMMENTS) {
+      const items = listRecentComments(recentCommentLimit);
+      return { event, payload: { items } };
+    }
+    return {
+      event: DOCK_EVENT.REQUESTS,
+      payload: {
+        summary: requestService.summary(),
+        list: requestService.list({ statuses: streamStatuses }),
+      },
+    };
+  };
+
+  api.post("/debug/comments", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const message = String(body.message ?? "").trim();
+    if (!message) {
+      return c.json({ error: "message is required" }, 400);
+    }
+    const response = handleDebugComment({ message, userName: body.userName ?? null });
+    return c.json(response);
+  });
+
+  api.post("/hooks/mcv/comments", async (c) => {
+    if (settings.mcvAccessToken) {
+      const token = c.req.header("x-botnama-mcv-token") ?? "";
+      if (token !== settings.mcvAccessToken) {
+        return c.json({ ok: false, message: "invalid token" }, 401);
+      }
+    }
+    const body = await c.req.json().catch(() => null);
+    const normalized = normalizeMcvPayload(body);
+    if (!normalized) {
+      return c.json({ ok: false, message: "invalid payload" }, 400);
+    }
+    if ("skipReason" in normalized) {
+      return c.json({ ok: true, skipped: normalized.skipReason });
+    }
+    try {
+      const result = ingestComment({
+        commentId: normalized.payload.commentId ?? undefined,
+        platform: normalized.payload.platform,
+        message: normalized.payload.comment,
+        userId: normalized.payload.userId ?? undefined,
+        userName: normalized.payload.userName ?? undefined,
+        roomId: normalized.payload.roomId ?? undefined,
+        timestamp: normalized.payload.timestamp,
+        allowRequestCreation: normalized.payload.allowRequestCreation,
+      });
+      return c.json({ ok: true, result });
+    } catch (err) {
+      return c.json(
+        { ok: false, message: err instanceof Error ? err.message : String(err) },
+        400,
+      );
+    }
+  });
+
+  api.get("/stream", (c) => {
+    let closeStream: (() => void) | null = null;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let closed = false;
+        const write = (event: string, data: unknown) => {
+          if (closed) return;
+          const chunk = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+          controller.enqueue(encoder.encode(chunk));
+        };
+        const send = (event: DockEvent) => {
+          pushDockEvent(event)
+            .then(({ event, payload }) => write(event, payload))
+            .catch((err) => console.error("[DockStream] failed to push event", err));
+        };
+        const unsubscribe = dockEventBus.subscribe((event) => send(event));
+        const heartbeat = setInterval(() => write("heartbeat", { now: Date.now() }), 15000);
+        send(DOCK_EVENT.REQUESTS);
+        send(DOCK_EVENT.COMMENTS);
+        send(DOCK_EVENT.SYSTEM);
+
+        const close = () => {
+          if (closed) return;
+          closed = true;
+          clearInterval(heartbeat);
+          unsubscribe();
+          try {
+            controller.close();
+          } catch {
+            // ignore
+          }
+        };
+        closeStream = close;
+
+        c.req.raw.signal.addEventListener("abort", close);
+      },
+      cancel() {
+        closeStream?.();
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "content-type": "text/event-stream",
+        "cache-control": "no-store",
+        connection: "keep-alive",
+      },
+    });
+  });
+
+  api.get("/requests", (c) => {
+    const statusParam = c.req.query("status");
+    const statuses = statusParam
+      ? statusParam
+        .split(",")
+        .map((v) => v.trim().toUpperCase() as RequestStatus)
+        .filter((status) => REQUEST_STATUS_SET.has(status))
+      : undefined;
+    const limit = c.req.query("limit");
+    const offset = c.req.query("offset");
+    const parsedLimit = limit ? Number(limit) : undefined;
+    const parsedOffset = offset ? Number(offset) : undefined;
+    if (
+      (parsedLimit !== undefined && Number.isNaN(parsedLimit)) ||
+      (parsedOffset !== undefined && Number.isNaN(parsedOffset))
+    ) {
+      return c.json({ error: "limit/offset must be numbers" }, 400);
+    }
+    const data = requestService.list({ statuses, limit: parsedLimit, offset: parsedOffset });
+    return c.json(data);
+  });
+
+  api.get("/requests/summary", (c) => {
+    return c.json(requestService.summary());
+  });
+
+  api.post("/requests/:id/play", (c) => {
+    const id = c.req.param("id");
+    try {
+      const request = requestService.play(id);
+      return c.json({ ok: true, request });
+    } catch (err) {
+      return c.json({ ok: false, message: err instanceof Error ? err.message : String(err) }, 400);
+    }
+  });
+
+  api.post("/requests/:id/skip", (c) => {
+    const id = c.req.param("id");
+    try {
+      const request = requestService.skip(id);
+      return c.json({ ok: true, request });
+    } catch (err) {
+      return c.json({ ok: false, message: err instanceof Error ? err.message : String(err) }, 400);
+    }
+  });
+
+  api.post("/requests/:id/delete", (c) => {
+    const id = c.req.param("id");
+    const removed = requestService.delete(id);
+    return c.json({ ok: true, removed });
+  });
+
+  api.post("/requests/:id/reorder", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const position = Number(body.position);
+    if (!Number.isFinite(position) || position < 1) {
+      return c.json({ ok: false, message: "position は 1 以上の数値で指定してください" }, 400);
+    }
+    try {
+      const request = requestService.reorderQueue(id, Math.floor(position));
+      return c.json({ ok: true, request });
+    } catch (err) {
+      return c.json({ ok: false, message: err instanceof Error ? err.message : String(err) }, 400);
+    }
+  });
+
+  api.post("/requests/suspend", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const ids = Array.isArray(body.ids)
+      ? body.ids.filter((id: unknown) => typeof id === "string")
+      : [];
+    if (ids.length === 0) {
+      return c.json({ ok: false, message: "ids は1件以上指定してください" }, 400);
+    }
+    const updated = requestService.suspendRequests(ids);
+    return c.json({ ok: true, updated: updated.length });
+  });
+
+  api.post("/requests/resume", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const ids = Array.isArray(body.ids)
+      ? body.ids.filter((id: unknown) => typeof id === "string")
+      : [];
+    if (ids.length === 0) {
+      return c.json({ ok: false, message: "ids は1件以上指定してください" }, 400);
+    }
+    const updated = requestService.resumeRequests(ids);
+    return c.json({ ok: true, updated: updated.length });
+  });
+
+  api.post("/requests/clear", () => {
+    requestService.clearAll();
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "content-type": "application/json" },
+    });
+  });
+
+  api.post("/overlay/stop", (c) => {
+    const paused = requestService.stopPlayback();
+    return c.json({ ok: true, paused });
+  });
+
+  api.post("/overlay/seek", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const rawPosition = body.positionSec;
+    const rawDelta = body.deltaSec;
+    if (rawPosition === undefined && rawDelta === undefined) {
+      return c.json(
+        { ok: false, message: "positionSec もしくは deltaSec を指定してください" },
+        400,
+      );
+    }
+    let targetPosition = typeof rawPosition === "number" ? rawPosition : undefined;
+    if (typeof rawDelta === "number") {
+      const playback = requestService.summary().currentPlayback;
+      if (!playback) {
+        return c.json({ ok: false, message: "再生中のトラックがありません" }, 400);
+      }
+      targetPosition = (targetPosition ?? playback.positionSec) + rawDelta;
+    }
+    if (typeof targetPosition !== "number" || Number.isNaN(targetPosition)) {
+      return c.json({ ok: false, message: "positionSec は数値で指定してください" }, 400);
+    }
+    try {
+      const state = requestService.seekPlayback(targetPosition);
+      return c.json({ ok: true, state });
+    } catch (err) {
+      return c.json({ ok: false, message: err instanceof Error ? err.message : String(err) }, 400);
+    }
+  });
+
+  api.get("/comments", (c) => {
+    const limitParam = c.req.query("limit");
+    const limit = limitParam ? Number(limitParam) : 50;
+    const items = listRecentComments(Number.isNaN(limit) ? 50 : limit);
+    return c.json({ items });
+  });
+
+  api.get("/system/info", async () => {
+    const info = await getSystemInfo(settings);
+    return new Response(JSON.stringify(info), { headers: { "content-type": "application/json" } });
+  });
+
+  api.post("/system/update/yt-dlp", async () => {
+    try {
+      const version = await updateYtDlpBinary(settings);
+      const info = await getSystemInfo(settings);
+      return new Response(JSON.stringify({ ok: true, version, info }), {
+        headers: { "content-type": "application/json" },
+      });
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ ok: false, message: err instanceof Error ? err.message : String(err) }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    }
+  });
+
+  api.post("/system/update/yt-dlp-ejs", async () => {
+    try {
+      const version = await updateYtDlpEjs();
+      const info = await getSystemInfo(settings);
+      return new Response(JSON.stringify({ ok: true, version, info }), {
+        headers: { "content-type": "application/json" },
+      });
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ ok: false, message: err instanceof Error ? err.message : String(err) }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    }
+  });
+
+  return api;
+};
