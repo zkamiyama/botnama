@@ -1,0 +1,6 @@
+[submodule "external/MultiCommentViewer"]
+	path = external/MultiCommentViewer
+	url = https://github.com/CommentViewerCollection/MultiCommentViewer
+[submodule "external/mediabunny"]
+	path = external/mediabunny
+	url = https://github.com/Vanilagy/mediabunny
