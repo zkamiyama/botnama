@@ -15,6 +15,8 @@ import {
 import { ApiListResponse, QueueSummary, RequestItem, RequestStatus } from "../types.ts";
 import { OverlayHub } from "../websocket/overlayHub.ts";
 import { DOCK_EVENT, emitDockEvent } from "../events/dockEventBus.ts";
+import { join } from "@std/path/join";
+import { resolve } from "@std/path/resolve";
 
 const ORDER_EDITABLE_STATUSES = new Set<RequestStatus>([
   "QUEUED",
@@ -59,9 +61,11 @@ export class RequestService {
   #overlayHub: OverlayHub;
   #currentPlayingId: string | null = null;
   #autoplayPaused = false;
+  #cacheDir: string | null;
 
-  constructor(overlayHub: OverlayHub) {
+  constructor(overlayHub: OverlayHub, options: { cacheDir?: string } = {}) {
     this.#overlayHub = overlayHub;
+    this.#cacheDir = options.cacheDir ?? null;
   }
 
   list(
@@ -105,6 +109,9 @@ export class RequestService {
     }
     if (!["READY", "DONE"].includes(request.status)) {
       throw new Error("READY もしくは DONE 状態のリクエストのみ再生できます");
+    }
+    if (!this.#ensureCachedMediaAvailable(request)) {
+      throw new Error("キャッシュが存在しないため再ダウンロードを開始しました");
     }
     console.log(`[RequestService] play -> ${requestId} (status=${request.status})`);
     resetPlayingExcept(requestId);
@@ -271,6 +278,42 @@ export class RequestService {
     this.#overlayHub.stop(200);
     deleteAllRequests();
     this.#currentPlayingId = null;
+  }
+
+  #ensureCachedMediaAvailable(request: RequestItem) {
+    const manifestPath = this.#resolveManifestPath(request);
+    if (!manifestPath) {
+      return true;
+    }
+    try {
+      Deno.statSync(manifestPath);
+      return true;
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        console.warn(`[RequestService] cache missing for ${request.id}, re-queuing download`);
+        updateRequestFields(request.id, {
+          status: "QUEUED",
+          status_reason: null,
+          queue_position: request.queuePosition ?? 1,
+          file_name: null,
+          cache_file_path: null,
+          cache_file_size: null,
+          play_started_at: null,
+          play_ended_at: null,
+        });
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  #resolveManifestPath(request: RequestItem) {
+    const candidate = request.cacheFilePath ??
+      (this.#cacheDir && request.fileName ? join(this.#cacheDir, request.fileName) : null);
+    if (!candidate) {
+      return null;
+    }
+    return resolve(candidate);
   }
 
   #buildPlaybackInfo() {

@@ -190,7 +190,7 @@ export class DownloadWorker {
   }
 
   async #fetchMetadata(url: string, settings: ServerSettings): Promise<YtDlpMetadata | null> {
-    const metadataArgs = ["--dump-json", "--skip-download", url];
+    const metadataArgs = ["--dump-json", "--skip-download", ...this.#buildCookieArgs(settings), url];
     console.log(
       `[worker] running yt-dlp metadata: ${settings.ytDlpPath} ${metadataArgs.join(" ")}`,
     );
@@ -223,7 +223,7 @@ export class DownloadWorker {
   async #downloadVideo(request: RequestItem, settings: ServerSettings, targets: CacheTargets) {
     ensureDirSync(settings.cacheDir);
     const outputTemplate = join(settings.cacheDir, `${targets.baseName}.%(ext)s`);
-    const args = ["-o", outputTemplate, request.url];
+    const args = ["-o", outputTemplate, ...this.#buildCookieArgs(settings), request.url];
     const command = new Deno.Command(settings.ytDlpPath, {
       args,
       stdout: "piped",
@@ -278,6 +278,22 @@ export class DownloadWorker {
     };
     await Deno.writeTextFile(targets.absolutePath, JSON.stringify(manifest, null, 2));
     return manifest;
+  }
+
+  #buildCookieArgs(settings: ServerSettings) {
+    const browser = settings.ytDlpCookiesFromBrowser;
+    if (!browser) return [];
+    let spec = browser;
+    if (settings.ytDlpCookiesFromBrowserKeyring) {
+      spec = `${spec}+${settings.ytDlpCookiesFromBrowserKeyring}`;
+    }
+    if (settings.ytDlpCookiesFromBrowserProfile) {
+      spec = `${spec}:${settings.ytDlpCookiesFromBrowserProfile}`;
+    }
+    if (settings.ytDlpCookiesFromBrowserContainer) {
+      spec = `${spec}::${settings.ytDlpCookiesFromBrowserContainer}`;
+    }
+    return ["--cookies-from-browser", spec];
   }
 
   #buildManifestEntries(artifacts: DownloadArtifact[]) {

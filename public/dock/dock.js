@@ -397,7 +397,17 @@ const createActionButton = (
   button.disabled = disabled;
   button.addEventListener("click", async (event) => {
     event.stopPropagation();
-    await handler(event);
+    try {
+      await handler(event);
+    } catch (err) {
+      console.error(err);
+      if (formStatus) {
+        const actionLabel = label ?? "操作";
+        formStatus.textContent = `${actionLabel}に失敗しました: ${
+          err instanceof Error ? err.message : String(err)
+        }`;
+      }
+    }
   });
   return button;
 };
@@ -458,6 +468,7 @@ const renderQueue = (items) => {
     clearButton.disabled = true;
     return;
   }
+  stopButton.disabled = false;
   for (const id of Array.from(selectedRequestIds)) {
     if (!queueItemsSnapshot.some((item) => item.id === id)) {
       selectedRequestIds.delete(id);

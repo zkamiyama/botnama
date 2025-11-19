@@ -41,7 +41,7 @@ export interface ParsedUrl {
   rawUrl: string;
   normalizedUrl: string;
   videoId: string;
-  site: "youtube" | "nicovideo" | "other";
+  site: "youtube" | "nicovideo" | "bilibili" | "other";
 }
 
 export interface RequestItem {
@@ -82,6 +82,10 @@ export interface ServerSettings {
   ffmpegPath: string | null;
   ytDlpInstallPath: string | null;
   mcvAccessToken: string | null;
+  ytDlpCookiesFromBrowser: string | null;
+  ytDlpCookiesFromBrowserProfile: string | null;
+  ytDlpCookiesFromBrowserKeyring: string | null;
+  ytDlpCookiesFromBrowserContainer: string | null;
 }
 
 export interface OverlayPlayMessage {

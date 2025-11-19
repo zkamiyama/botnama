@@ -8,3 +8,8 @@ denoPath = "deno"
 ffmpegPath = "bin/ffmpeg.exe"
 ytDlpInstallPath = "bin/yt-dlp.exe"
 mcvAccessToken = ""
+# Cookie 連携は .env の BOTNAMA_YTDLP_* 環境変数が設定されている場合そちらを優先します。
+ytDlpCookiesFromBrowser = ""
+ytDlpCookiesFromBrowserProfile = ""
+ytDlpCookiesFromBrowserKeyring = ""
+ytDlpCookiesFromBrowserContainer = ""

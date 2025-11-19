@@ -14,7 +14,7 @@ const settings = loadServerSettings();
 await bootstrapEnvironment(settings);
 
 const overlayHub = new OverlayHub();
-const requestService = new RequestService(overlayHub);
+const requestService = new RequestService(overlayHub, { cacheDir: settings.cacheDir });
 overlayHub.setHandlers({
   onEnded: (message) => {
     if (message.type === "ended") {
@@ -140,7 +140,7 @@ app.get("/media/:file", async (c) => {
             file.close();
           }
         },
-        cancel: async () => {
+        cancel: () => {
           file.close();
         },
       });

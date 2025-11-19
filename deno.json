@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env=READABLE_STREAM src/server.ts",
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env=READABLE_STREAM,BOTNAMA_YTDLP_COOKIES_BROWSER,BOTNAMA_YTDLP_COOKIES_PROFILE,BOTNAMA_YTDLP_COOKIES_KEYRING,BOTNAMA_YTDLP_COOKIES_CONTAINER src/server.ts",
     "setup": "deno run --allow-net --allow-read --allow-write --allow-run=git,tar scripts/setup.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",
@@ -12,7 +12,8 @@
     "@std/fs": "jsr:@std/fs@^1.0.6",
     "@std/toml": "jsr:@std/toml@^1.0.0",
     "jszip": "npm:jszip@^3.10.1",
-    "@std/media-types": "jsr:@std/media-types@^1.0.3"
+    "@std/media-types": "jsr:@std/media-types@^1.0.3",
+    "@std/dotenv": "jsr:@std/dotenv@^0.224.1"
   },
   "compilerOptions": {
     "lib": [
