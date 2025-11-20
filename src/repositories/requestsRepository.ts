@@ -204,16 +204,6 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
     throw new Error("failed to fetch newly inserted request");
   }
   emitDockEvent(DOCK_EVENT.REQUESTS);
-  emitInfoOverlay({
-    level: "info",
-    titleKey: "request_accepted_title",
-    messageKey: "request_accepted_full",
-    params: { url: row.url },
-    requestId: row.id,
-    userName: row.userName,
-    url: row.url,
-    scope: "status",
-  });
   return row;
 };
 
@@ -263,8 +253,8 @@ export const updateStatus = (id: string, status: RequestStatus, reason?: string 
   if (status === "READY" && reason !== "STOP" && (!before || before.status !== "READY")) {
     emitInfoOverlay({
       level: "info",
-      titleKey: "request_ready_title",
-      messageKey: "body_url_only",
+      titleKey: "request_accepted_title",
+      messageKey: "request_accepted_full",
       params: { url: updated.url },
       requestId: updated.id,
       userName: updated.userName,
@@ -272,23 +262,17 @@ export const updateStatus = (id: string, status: RequestStatus, reason?: string 
       scope: "info",
     });
   }
-  if (status === "REJECTED") {
+  if (status === "REJECTED" || status === "FAILED") {
+    const isMetadataFailure = detail === "metadata fetch failed";
+    const messageKey = isMetadataFailure ? "request_rejected_full" : "body_with_reason";
+    const params = isMetadataFailure
+      ? { url: updated.url }
+      : { reason: detail ?? (status === "FAILED" ? "error" : "rejected"), url: updated.url };
     emitInfoOverlay({
-      level: "warn",
+      level: status === "FAILED" ? "error" : "warn",
       titleKey: "request_rejected_title",
-      messageKey: "body_with_reason",
-      params: { reason: detail ?? "rejected", url: updated.url },
-      requestId: updated.id,
-      userName: updated.userName,
-      url: updated.url,
-      scope: "status",
-    });
-  } else if (status === "FAILED") {
-    emitInfoOverlay({
-      level: "error",
-      titleKey: "request_failed_title",
-      messageKey: "body_with_reason",
-      params: { reason: detail ?? "error", url: updated.url },
+      messageKey,
+      params,
       requestId: updated.id,
       userName: updated.userName,
       url: updated.url,

@@ -1,7 +1,5 @@
 /// <reference lib="deno.ns" />
 
-declare const Deno: any;
-
 declare global {
   interface ImportMeta {
     readonly main?: boolean;

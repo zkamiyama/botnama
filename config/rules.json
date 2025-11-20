@@ -1,0 +1,10 @@
+{
+  "maxDurationMinutes": 15,
+  "maxDurationEnabled": true,
+  "disallowDuplicates": true,
+  "cooldownMinutes": 30,
+  "pollEnabled": true,
+  "pollIntervalSec": 90,
+  "pollWindowSec": 30,
+  "pollStopDelaySec": 3
+}

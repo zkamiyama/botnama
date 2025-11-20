@@ -64,6 +64,7 @@ export const onPlaybackStarted = (request: RequestItem) => {
 
 const startPoll = (request: RequestItem) => {
   // announce question
+  const questionDurationMs = Math.max(5000, rules.voteWindowSec * 1000);
   emitInfoOverlay({
     level: "info",
     title: "",
@@ -72,6 +73,7 @@ const startPoll = (request: RequestItem) => {
     messageKey: "poll_question_body",
     params: { url: request.url },
     scope: "status",
+    durationMs: questionDurationMs,
   });
   if (!state) return;
   const windowTimer = setTimeout(() => finishPoll(request), rules.voteWindowSec * 1000) as unknown as number;

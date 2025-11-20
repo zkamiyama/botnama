@@ -57,12 +57,40 @@ deno task dev
 4. **ダウンロード進行の確認**: ワーカー（`src/services/downloadWorker.ts`）が自動で
    `VALIDATING → DOWNLOADING → READY` と更新します。Dock
    のステータス列アイコンとサマリー「ダウンロード中: n件」で進捗を確認できます。
-5. **再生テスト**: READY 行の `▶` を押すと overlay 側の `<video>` が `/media/<file>`
-   を再生します。最初の1本を再生させれば、以降はキューの順に READY → PLAYING → DONE
-   を自動で繰り返します（途中で止めたい場合は Dock
-   上部の「停止」ボタンを押してください）。グローバルな「停止」「スキップ」ボタンで現在の再生を制御できます。
+5. **再生テスト**: READY 行の `▶` を押すと overlay 側が `/media/<file>`
+  を再生します。最初の1本を再生させれば、以降はキューの順に READY → PLAYING → DONE
+  を自動で繰り返します。Dock 左上の再生コントロール（シークバー、±10 秒ボタン、
+  Pause/Resume ボタン、`Auto/Intake/Stop/Skip` ボタン）から現在の再生をいつでも制御できます。
 6. **エラー確認**: ダウンロードや変換に失敗した場合はステータスが `FAILED`
    になり、行のツールチップにエラー理由（yt-dlp / ffmpeg の標準出力）が表示されます。
+
+  ## Dock UI の主な機能
+
+  ### キューとリクエスト管理
+
+  - 一覧は常に最新ステータスへ SSE で追従し、行先頭の `#` 入力欄を書き換えるだけで並び順を再指定できます。
+  - 行を右クリックするとコンテキストメニューが出現し、複数選択したリクエストをまとめて `SUSPEND` / `RESUME` できます。
+  - 上部の `停止 / スキップ / 全削除 / Auto / Intake` ボタンは現在の再生と受付状態を即座に切り替えます。
+
+  ### 再生コントロール
+
+  - シークバーは現在位置と長さをリアルタイム表示し、ドラッグ後に ±10 秒ボタンまたは Pause/Resume と組み合わせて微調整できます。
+  - Pause ボタンは `PLAYING/PAUSED` をトグルし、Auto ボタンは自動再生キューを停止または再開します。Intake ボタンは視聴者からの新規リクエスト受付を一時停止できます。
+
+  ### コメント / デバッグタブ
+
+  - Comments タブには直近のコメントログが表示され、送信者名・本文・受信時刻をそのまま確認できます。
+  - Debug タブではキューサマリーや内部状態を JSON で確認でき、問題切り分けに利用します。
+
+  ### System タブ
+
+  - 現在利用中と最新の yt-dlp 版本号、`yt-dlp-ejs` の状態を表示します。
+  - 「yt-dlp を更新」「yt-dlp-ejs を更新」ボタンから API 経由でアップデートを実行でき、成功すると Dock 全体が自動再読み込みされます。
+
+  ### Rules タブ
+
+  - 動画長さ制限、有効/無効切り替え、最大分数、重複拒否、再リクエストのクーリングタイムを GUI で編集できます。
+  - ポール機能（投票）もここで設定し、開始までの待ち時間・投票受付秒数・停止までの猶予をそれぞれ秒単位で調整できます。値を保存すると即座にサーバへ反映され、次回再生から新しいルールで進行します。
 
 ## 動画キャッシュとファイル名
 
@@ -81,13 +109,22 @@ deno task dev
 
 ## Info Overlay（通知）
 
-- ブラウザソース URL を `http://localhost:2101/overlay-info/` に設定すると、画面上部に帯テロップが出ます。
-- リクエスト受付時は URL、再生開始時は動画タイトルを表示。自動再生/AUTOトグル・リクエスト受付トグルの状態変更も流れます。
-- テキストがはみ出す場合は自動スクロール（マルチループ）します。色・高さ・背景などは CSS 変数で上書き可能です。
-- 通信は SSE（`/api/overlay-info/stream`）で行われ、接続断時は自動再接続します。
+- ブラウザソース URL を `http://localhost:2101/overlay-info/` に設定すると、イベントごとに帯を複製して縦に積み上げる通知ビューが表示されます（帯同士の間隔は CSS 変数 `--stack-gap` で調整でき、デフォルトは 0px で密着）。
+- 再生リクエストやスキップ結果、Intake/Auto の切り替え、ポール開始/結果、動画統計（投稿日・再生数・コメント数・再生時間）やキュー残数/残り時間など、Overlay 全体へ出したい情報を順次スタックします。表示時間は各イベントから渡され、複数同時でもそれぞれ独立して消えます。
+- テキストが帯幅を超える場合は 2 セット以上を自動タイリングし、スクロールマルチループで 30 秒前後を滑らかに見せます。
+- フォントサイズや高さ、色、タイリング間隔などは CSS 変数で上書きできます。例:
+  ```css
+  :root {
+    --info-font-size: 36px;
+    --status-font-size: 30px;
+    --band-height: 64px;
+    --marquee-tiling-gap: 256px;
+  }
+  ```
+- 通信は SSE（`/api/overlay-info/stream`）で行われ、切断時も自動再接続して直近のイベントを取りこぼしません。
 
 ## MultiCommentViewer を経由した受信
-
+https://github.com/DaisukeDaisuke/MultiCommentViewer
 1. `external/MultiCommentViewer` サブモジュールを初期化します。
    ```bash
    git submodule update --init --recursive external/MultiCommentViewer
@@ -130,21 +167,15 @@ deno task dev
   に設定すると、yt-dlp の `--cookies-from-browser` で該当ブラウザのログイン Cookie
   を自動で読み込みます。必要に応じて `ytDlpCookiesFromBrowserProfile`（例: `"Default"` や `"Profile 2"`）、
   `ytDlpCookiesFromBrowserKeyring`、`ytDlpCookiesFromBrowserContainer`
-  も併せて指定してください。空文字のままにすると無効化されます。
+  も併せて指定してください。空文字のままにすると無効化されます。安定して Cookie が抽出できるため、特に理由がなければ Firefox プロファイルの利用を推奨します。
 - 機密値は `.env`（リポジトリ直下、`.gitignore` 済み）に
   `BOTNAMA_YTDLP_COOKIES_BROWSER=chrome` や `BOTNAMA_YTDLP_COOKIES_PROFILE=Default`
   のように書くこともできます。必要に応じて `BOTNAMA_YTDLP_COOKIES_KEYRING`、
   `BOTNAMA_YTDLP_COOKIES_CONTAINER`
   も併せて指定してください。環境変数が定義されている場合は TOML より優先して読み込まれるため、
   リポジトリにコミットしたくないブラウザ名／プロファイルなどは `.env` にのみ記述してください。
-
-### ルールタブ（Dock）
-
-- **動画長さ制限**: 有効化トグルと最大分数を指定すると、設定値を超えるリクエストを拒否します。
-- **重複リクエスト禁止**: 同一動画がキューに存在する場合、新規リクエストを拒否します。
-- **クーリングタイム**: 既に再生した動画を再リクエストできるまでの待ち時間（分）。デフォルト60分。  
-  - 0分を指定すると、該当動画はキューから削除されるまで再リクエストできません。  
-  - 拒否時は「N分後に再度リクエストできます」と視聴者に通知されます。
+- Dock / Overlay の UI 言語は `config/settings.toml` の `locale` か `.env` の
+  `BOTNAMA_LOCALE` で `ja` / `en` / `auto` を指定できます。配信ごとに言語を切り替えたい場合は `.env` 側で上書きすると TOML を編集せずに切り替えられます。
 
 ## トラブルシューティング
 
@@ -161,4 +192,3 @@ deno task dev
 - リクエスト履歴を削除したい場合: `sqlite3 db/app.sqlite "DELETE FROM requests;"`
 - キャッシュ動画をリセット: `Remove-Item -Recurse -Force cache/videos/*`
 
-以上の手順で、SPEC_v0.1 に記載されたデバッグフローをローカル環境で再現できます。

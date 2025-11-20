@@ -42,6 +42,7 @@ export const translations = {
     request_ready_title: "Request ready",
     request_failed_title: "Request failed",
     request_rejected_title: "Request rejected",
+    request_rejected_full: ({ url }) => `Request rejected: ${url ?? ""}`,
     request_stop_title: "Playback stopped",
     request_autoplay_paused_title: "Autoplay paused",
     request_autoplay_resumed_title: "Autoplay resumed",
@@ -50,17 +51,18 @@ export const translations = {
     request_stop_full: ({ url }) => `Stopped playback: ${url ?? ""}`,
     request_accepted_full: ({ url }) => `Request accepted: ${url ?? ""}`,
     request_play_title: "Now playing",
-    stat_uploaded: "Pub: ",
-    stat_duration: "Dur: ",
-    stat_views: "Views: ",
-    stat_comments: "Comments: ",
-    stat_uploader: "By ",
-    stat_likes: "Like: ",
-    stat_dislikes: "Dislike: ",
-    stat_mylist: "MyList: ",
-    stat_favorites: "Fav: ",
-    stat_danmaku: "Danmaku: ",
-    stat_fetched: "As of ",
+    stat_uploaded: "Published",
+    stat_duration: "Duration",
+    stat_views: "Views",
+    stat_comments: "Comments",
+    stat_uploader: "Uploader",
+    stat_likes: "Likes",
+    stat_dislikes: "Dislikes",
+    stat_mylist: "MyList",
+    stat_favorites: "Favorites",
+    stat_danmaku: "Danmaku",
+    stat_fetched: "Fetched",
+    stat_remaining_summary: "Queue left",
     ctx_suspend: "Suspend selection",
     ctx_resume: "Resume selection",
     body_url_only: ({ url }) => url ?? "",
@@ -105,6 +107,7 @@ export const translations = {
     reason_cooldown_wait: ({ minutes, url }) => minutes === 0
       ? `Please remove from queue before requesting again. (${url ?? ""})`
       : `You can request again in ${minutes} min. (${url ?? ""})`,
+    reason_invalid_url: ({ url }) => `Invalid URL: ${url ?? ""}`,
     confirm_delete_all: "Delete all items?",
     tooltip_suspend_origin: ({ reason }) => `Suspended (from: ${reason ?? ""})`,
     tooltip_suspend_plain: "Suspended",
@@ -152,11 +155,11 @@ export const translations = {
     rule_poll_window: "投票受付時間 (秒)",
     rule_poll_stop_delay: "否決後の停止遅延 (秒)",
     poll_question_title: "継続しますか？",
-    poll_question_body: "継続しますか？ (いいよ/やめよ)",
+    poll_question_body: "継続しますか？ (y/n)",
     poll_result_title: "アンケート結果",
-    poll_result_body: "いいよ: {yes}% やめよ: {no}%",
-    poll_vote_yes: "いいよ",
-    poll_vote_no: "やめよ",
+    poll_result_body: "y: {yes}% n: {no}%",
+    poll_vote_yes: "y",
+    poll_vote_no: "n",
     rule_save: "保存",
     rule_saved: "保存しました",
     rule_save_failed: "保存に失敗しました",
@@ -173,6 +176,7 @@ export const translations = {
     request_ready_title: "リクエストを準備しました",
     request_failed_title: "リクエスト処理に失敗しました",
     request_rejected_title: "リクエストを拒否しました",
+    request_rejected_full: ({ url }) => `リクエストを拒否しました: ${url ?? ""}`,
     request_stop_title: "再生を停止しました",
     request_autoplay_paused_title: "自動再生を停止しました",
     request_autoplay_resumed_title: "自動再生を再開しました",
@@ -181,17 +185,18 @@ export const translations = {
     request_stop_full: ({ url }) => `再生を停止しました: ${url ?? ""}`,
     request_accepted_full: ({ url }) => `リクエストを受け付けました: ${url ?? ""}`,
     request_play_title: "再生開始",
-    stat_uploaded: "投稿: ",
-    stat_duration: "時間: ",
-    stat_views: "再生: ",
-    stat_comments: "コメント: ",
-    stat_uploader: "投稿者: ",
-    stat_likes: "いいね: ",
-    stat_dislikes: "バッド: ",
-    stat_mylist: "マイリスト: ",
-    stat_favorites: "お気に入り: ",
-    stat_danmaku: "弾幕: ",
-    stat_fetched: "取得: ",
+    stat_uploaded: "投稿日",
+    stat_duration: "再生時間",
+    stat_views: "再生数",
+    stat_comments: "コメント数",
+    stat_uploader: "投稿者",
+    stat_likes: "高評価",
+    stat_dislikes: "低評価",
+    stat_mylist: "マイリスト",
+    stat_favorites: "お気に入り",
+    stat_danmaku: "弾幕",
+    stat_fetched: "取得日時",
+    stat_remaining_summary: "リスト残",
     ctx_suspend: "選択を保留にする",
     ctx_resume: "選択の保留を解除",
     body_url_only: ({ url }) => url ?? "",
@@ -236,6 +241,7 @@ export const translations = {
     reason_cooldown_wait: ({ minutes, url }) => minutes === 0
       ? `キューから削除するまで再リクエストできません (${url ?? ""})`
       : `${minutes}分後に再度リクエストできます (${url ?? ""})`,
+    reason_invalid_url: ({ url }) => `${url ?? ""} は無効なURLです`,
     confirm_delete_all: "再生リストをすべて削除しますか？",
     tooltip_suspend_origin: ({ reason }) => `保留中 (元: ${reason ?? ""})`,
     tooltip_suspend_plain: "保留中",
@@ -299,14 +305,18 @@ export const detectLocale = async () => {
       setLocale(stored);
       if (resolved) return resolved;
     }
-  } catch (_) {}
+  } catch (_) {
+    // ignore storage read errors (e.g., Safari private mode)
+  }
   try {
     const res = await fetch('/api/locale');
     if (res.ok) {
       const data = await res.json();
       if (data?.locale) setLocale(data.locale);
     }
-  } catch (_) {}
+  } catch (_) {
+    // tolerant of locale endpoint failures
+  }
   if (!resolved) {
     const nav = navigator.language || navigator.userLanguage || 'en';
     setLocale(nav);

@@ -23,7 +23,6 @@ import { fetchVideoMetadata } from "./metadataService.ts";
 import { loadServerSettings } from "../settings.ts";
 import {
   configurePollRules,
-  handleVote,
   onPlaybackStarted,
   resetPoll,
   setPollRejectHandler,
@@ -64,6 +63,22 @@ const REQUEST_STATUS_VALUES: RequestStatus[] = [
   "SUSPEND",
 ];
 
+const PLAYBACK_BAND_TARGET_MS = 30_000;
+const PLAYBACK_BAND_MIN_MS = 5_000;
+const PLAYBACK_BAND_HEADROOM_MS = 1_000;
+
+const computePlaybackBandDurationMs = (durationSec: number | null | undefined) => {
+  if (typeof durationSec !== "number" || !Number.isFinite(durationSec) || durationSec <= 0) {
+    return PLAYBACK_BAND_TARGET_MS;
+  }
+  const durationMs = durationSec * 1000;
+  if (durationMs < PLAYBACK_BAND_TARGET_MS) {
+    const candidate = durationMs - PLAYBACK_BAND_HEADROOM_MS;
+    return Math.max(PLAYBACK_BAND_MIN_MS, Math.max(candidate, 0));
+  }
+  return PLAYBACK_BAND_TARGET_MS;
+};
+
 const toRequestStatus = (value: string | null): RequestStatus | null => {
   if (!value) return null;
   return REQUEST_STATUS_VALUES.includes(value as RequestStatus) ? value as RequestStatus : null;
@@ -82,7 +97,15 @@ export class RequestService {
     this.#overlayHub = overlayHub;
     this.#cacheDir = options.cacheDir ?? null;
     setPollRejectHandler(() => {
-      this.stopPlayback();
+      if (this.#currentPlayingId) {
+        try {
+          this.skip(this.#currentPlayingId);
+        } catch (err) {
+          console.error("[RequestService] poll reject skip failed", err);
+        }
+      } else {
+        this.stopPlayback();
+      }
     });
   }
 
@@ -165,24 +188,32 @@ export class RequestService {
     this.#currentPlayingId = updated.id;
     emitDockEvent(DOCK_EVENT.REQUESTS);
     console.log(`[RequestService] overlay play signal sent for ${updated.id}`);
+    const playbackOverlayDurationMs = computePlaybackBandDurationMs(updated.durationSec ?? null);
     // 1) タイトル帯（上段）：再生開始ラベルは付けず、タイトルのみ
+    const normalizedTitle = (updated.title ?? "").trim();
+    const infoSegments = [];
+    if (normalizedTitle.length > 0) infoSegments.push(normalizedTitle);
+    if (updated.url) infoSegments.push(updated.url);
+    const infoMessage = infoSegments.length > 0 ? infoSegments.join(" ") : (updated.url ?? "");
     emitInfoOverlay({
       level: "info",
-      message: updated.title ?? updated.url,
+      message: infoMessage,
       requestId: updated.id,
       userName: updated.userName,
       url: updated.url,
       scope: "info",
+      durationMs: playbackOverlayDurationMs,
     });
     // 2) 統計帯（下段）：URL＋統計のみ
+    const queueSummary = fetchQueueSummary();
     emitInfoOverlay({
       level: "info",
-      messageKey: "body_url_only",
-      params: { url: updated.url },
+      message: "",
       requestId: updated.id,
       userName: updated.userName,
       url: updated.url,
       scope: "status",
+      durationMs: playbackOverlayDurationMs,
       stats: {
         uploadedAt: updated.uploadedAt ?? null,
         durationSec: updated.durationSec ?? null,
@@ -196,6 +227,8 @@ export class RequestService {
         uploader: updated.uploader ?? null,
         site: updated.parsed?.site ?? "other",
         metaRefreshedAt: updated.metaRefreshedAt ?? Date.now(),
+        pendingItems: queueSummary.totalPendingItems ?? null,
+        pendingDurationSec: queueSummary.totalDurationSecPending ?? null,
       },
     });
     return updated;
@@ -210,6 +243,7 @@ export class RequestService {
     if (this.#currentPlayingId === request.id) {
       this.#overlayHub.stop(200);
       this.#currentPlayingId = null;
+      resetPoll();
     }
     this.playNextReady();
     return updated;
@@ -223,6 +257,7 @@ export class RequestService {
     if (this.#currentPlayingId === request.id) {
       this.#overlayHub.stop(200);
       this.#currentPlayingId = null;
+      resetPoll();
     }
     this.playNextReady();
     return request;
@@ -303,6 +338,7 @@ export class RequestService {
       this.#playbackPaused = false;
       this.#pausedPositionSec = 0;
     }
+    resetPoll();
     this.playNextReady();
   }
 
@@ -314,6 +350,7 @@ export class RequestService {
       this.#playbackPaused = false;
       this.#pausedPositionSec = 0;
     }
+    resetPoll();
     this.playNextReady();
   }
 
@@ -375,6 +412,7 @@ export class RequestService {
       }
       this.#playbackPaused = false;
       this.#pausedPositionSec = 0;
+      resetPoll();
       emitDockEvent(DOCK_EVENT.REQUESTS);
       emitInfoOverlay({
         level: "info",
@@ -451,6 +489,7 @@ export class RequestService {
     this.#currentPlayingId = null;
     this.#playbackPaused = false;
     this.#pausedPositionSec = 0;
+    resetPoll();
   }
 
   #ensureCachedMediaAvailable(request: RequestItem) {

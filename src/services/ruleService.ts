@@ -1,3 +1,7 @@
+import { ensureDirSync } from "@std/fs/ensure-dir";
+import { join } from "@std/path/join";
+import { fromFileUrl } from "@std/path/from-file-url";
+
 type RuleState = {
   maxDurationMinutes: number;
   maxDurationEnabled: boolean;
@@ -9,7 +13,11 @@ type RuleState = {
   pollStopDelaySec: number;
 };
 
-let state: RuleState = {
+const PROJECT_ROOT = fromFileUrl(new URL("../..", import.meta.url));
+const CONFIG_DIR = join(PROJECT_ROOT, "config");
+const RULES_PATH = join(CONFIG_DIR, "rules.json");
+
+const DEFAULT_STATE: RuleState = {
   maxDurationMinutes: 10, // default fallback, will be overridden by init
   maxDurationEnabled: true,
   disallowDuplicates: true,
@@ -20,22 +28,9 @@ let state: RuleState = {
   pollStopDelaySec: 10,
 };
 
-export const initRuleState = (initialMaxDurationSec: number) => {
-  state.maxDurationMinutes = Math.max(1, Math.round(initialMaxDurationSec / 60));
-};
+let state: RuleState = { ...DEFAULT_STATE };
 
-export const getRules = () => ({
-  maxDurationMinutes: state.maxDurationMinutes,
-  maxDurationEnabled: state.maxDurationEnabled,
-  disallowDuplicates: state.disallowDuplicates,
-  cooldownMinutes: state.cooldownMinutes,
-  pollEnabled: state.pollEnabled,
-  pollIntervalSec: state.pollIntervalSec,
-  pollWindowSec: state.pollWindowSec,
-  pollStopDelaySec: state.pollStopDelaySec,
-});
-
-export const updateRules = (input: Partial<RuleState>) => {
+const applyRuleUpdates = (input: Partial<RuleState>) => {
   if (typeof input.maxDurationMinutes === "number" && Number.isFinite(input.maxDurationMinutes)) {
     state.maxDurationMinutes = Math.max(1, Math.round(input.maxDurationMinutes));
   }
@@ -58,6 +53,53 @@ export const updateRules = (input: Partial<RuleState>) => {
   if (typeof input.pollStopDelaySec === "number" && Number.isFinite(input.pollStopDelaySec)) {
     state.pollStopDelaySec = Math.max(1, Math.round(input.pollStopDelaySec));
   }
+};
+
+const hydrateFromDisk = () => {
+  try {
+    const text = Deno.readTextFileSync(RULES_PATH);
+    const parsed = JSON.parse(text) as Partial<RuleState> | null;
+    if (parsed && typeof parsed === "object") {
+      applyRuleUpdates(parsed);
+    }
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return;
+    }
+    console.error("[RuleService] failed to load rules.json", err);
+  }
+};
+
+const persistToDisk = () => {
+  try {
+    ensureDirSync(CONFIG_DIR);
+    const serialized = JSON.stringify(state, null, 2);
+    Deno.writeTextFileSync(RULES_PATH, serialized);
+  } catch (err) {
+    console.error("[RuleService] failed to persist rules", err);
+  }
+};
+
+export const initRuleState = (initialMaxDurationSec: number) => {
+  state = { ...DEFAULT_STATE };
+  state.maxDurationMinutes = Math.max(1, Math.round(initialMaxDurationSec / 60));
+  hydrateFromDisk();
+};
+
+export const getRules = () => ({
+  maxDurationMinutes: state.maxDurationMinutes,
+  maxDurationEnabled: state.maxDurationEnabled,
+  disallowDuplicates: state.disallowDuplicates,
+  cooldownMinutes: state.cooldownMinutes,
+  pollEnabled: state.pollEnabled,
+  pollIntervalSec: state.pollIntervalSec,
+  pollWindowSec: state.pollWindowSec,
+  pollStopDelaySec: state.pollStopDelaySec,
+});
+
+export const updateRules = (input: Partial<RuleState>) => {
+  applyRuleUpdates(input);
+  persistToDisk();
   return getRules();
 };
 

@@ -152,6 +152,9 @@ let playbackState = null;
 let playbackAnimationId = null;
 let playbackLastUpdate = 0;
 let isUserSeeking = false;
+let seekPointerActive = false;
+let seekPointerStartValue = null;
+let pendingSeekRequest = null;
 
 const updateAutoplayButtonState = (paused) => {
   if (!autoButton) return;
@@ -354,24 +357,42 @@ const stopPlaybackAnimation = () => {
   }
 };
 
-const sendSeekRequest = async (payload) => {
-  if (!playbackState) return;
-  try {
-    await fetchJSON("/api/overlay/seek", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  } catch (err) {
+const sendSeekRequest = (payload) => {
+  if (!playbackState) return null;
+  const request = fetchJSON("/api/overlay/seek", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  request.catch((err) => {
     formStatus.textContent = t("msg_seek_fail", err.message);
-  }
+  });
+  return request;
+};
+
+const finishSeekInteraction = () => {
+  if (seekPointerActive || pendingSeekRequest) return;
+  isUserSeeking = false;
+  seekPointerStartValue = null;
 };
 
 if (playbackSeekEl) {
   playbackSeekEl.addEventListener("pointerdown", () => {
+    seekPointerActive = true;
+    seekPointerStartValue = playbackSeekEl.value;
     isUserSeeking = true;
   });
-  playbackSeekEl.addEventListener("pointerup", () => {
-    isUserSeeking = false;
+  const handlePointerFinish = () => {
+    if (!seekPointerActive) return;
+    seekPointerActive = false;
+    if (seekPointerStartValue !== null && seekPointerStartValue === playbackSeekEl.value) {
+      finishSeekInteraction();
+    }
+  };
+  playbackSeekEl.addEventListener("pointerup", handlePointerFinish);
+  playbackSeekEl.addEventListener("pointercancel", handlePointerFinish);
+  playbackSeekEl.addEventListener("pointerleave", (event) => {
+    if (event.pointerType === "mouse") return;
+    handlePointerFinish();
   });
   playbackSeekEl.addEventListener("input", () => {
     if (!playbackCurrentEl) return;
@@ -379,10 +400,20 @@ if (playbackSeekEl) {
     playbackCurrentEl.textContent = formatTimeLabel(Number(playbackSeekEl.value));
   });
   playbackSeekEl.addEventListener("change", () => {
-    isUserSeeking = false;
     const target = Number(playbackSeekEl.value);
     if (Number.isFinite(target)) {
-      sendSeekRequest({ positionSec: target });
+      const pending = sendSeekRequest({ positionSec: target });
+      if (pending && typeof pending.finally === "function") {
+        pendingSeekRequest = pending;
+        pending.finally(() => {
+          pendingSeekRequest = null;
+          finishSeekInteraction();
+        });
+      } else {
+        finishSeekInteraction();
+      }
+    } else {
+      finishSeekInteraction();
     }
   });
 }

@@ -29,8 +29,19 @@
     "indentWidth": 2
   },
   "lint": {
+    "include": [
+      "src",
+      "scripts",
+      "public/overlay-info",
+      "public/dock",
+      "public/i18n.js"
+    ],
     "exclude": [
-      "bin"
+      "public/vendor",
+      "external",
+      "plugins",
+      "cache",
+      "tmp"
     ]
   }
 }

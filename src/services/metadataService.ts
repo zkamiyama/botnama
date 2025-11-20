@@ -14,20 +14,19 @@ export interface VideoMeta {
 }
 
 const buildCookieArgs = (settings: ServerSettings) => {
-  const args: string[] = [];
-  if (settings.ytDlpCookiesFromBrowser) {
-    args.push("--cookies-from-browser", settings.ytDlpCookiesFromBrowser);
-    if (settings.ytDlpCookiesFromBrowserProfile) {
-      args.push("--cookies-from-browser-profile", settings.ytDlpCookiesFromBrowserProfile);
-    }
-    if (settings.ytDlpCookiesFromBrowserKeyring) {
-      args.push("--cookies-from-browser-keyring", settings.ytDlpCookiesFromBrowserKeyring);
-    }
-    if (settings.ytDlpCookiesFromBrowserContainer) {
-      args.push("--cookies-from-browser-container", settings.ytDlpCookiesFromBrowserContainer);
-    }
+  const browser = settings.ytDlpCookiesFromBrowser;
+  if (!browser) return [];
+  let spec = browser;
+  if (settings.ytDlpCookiesFromBrowserKeyring) {
+    spec = `${spec}+${settings.ytDlpCookiesFromBrowserKeyring}`;
   }
-  return args;
+  if (settings.ytDlpCookiesFromBrowserProfile) {
+    spec = `${spec}:${settings.ytDlpCookiesFromBrowserProfile}`;
+  }
+  if (settings.ytDlpCookiesFromBrowserContainer) {
+    spec = `${spec}::${settings.ytDlpCookiesFromBrowserContainer}`;
+  }
+  return ["--cookies-from-browser", spec];
 };
 
 export const fetchVideoMetadata = async (

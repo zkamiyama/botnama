@@ -57,6 +57,7 @@ export const ingestComment = (input: IngestCommentInput): CommentIngestResult =>
 
   let warning: string | undefined;
   let request: RequestItem | null = null;
+  const warnOnMissingUrl = input.warnOnMissingUrl ?? false;
 
   // handle poll votes
   const vote = normalizePollVote(comment.message);
@@ -125,15 +126,15 @@ export const ingestComment = (input: IngestCommentInput): CommentIngestResult =>
           queuePosition: input.queuePosition ?? 1,
         });
       }
-    } else if (input.warnOnMissingUrl) {
+    } else if (warnOnMissingUrl) {
       warning = "url-not-found";
       emitInfoOverlay({
         level: "warn",
         titleKey: "request_rejected_title",
-        messageKey: "body_with_reason",
-        params: { reason: "URL not found", url: comment.message },
+        messageKey: "reason_invalid_url",
+        params: { url: input.message },
         userName: comment.userName,
-        url: comment.message,
+        url: input.message,
         scope: "status",
       });
     }
@@ -162,7 +163,7 @@ export const handleDebugComment = (
     userId: "debug",
     userName: payload.userName ?? "debug",
     roomId: null,
-    warnOnMissingUrl: true,
+    warnOnMissingUrl: false,
   });
 const normalizePollVote = (text: string): "yes" | "no" | null => {
   const trimmed = text.trim();

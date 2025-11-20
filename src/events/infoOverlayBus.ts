@@ -13,6 +13,7 @@ export type InfoOverlayEvent = {
   url?: string | null;
   scope?: "info" | "status";
   stats?: Record<string, unknown> | null;
+  durationMs?: number | null;
   createdAt: number;
 };
 
@@ -59,6 +60,7 @@ export const emitInfoOverlay = (
     url: input.url ?? null,
     scope: input.scope ?? "info",
     stats: input.stats ?? null,
+    durationMs: typeof input.durationMs === "number" ? input.durationMs : null,
   };
   bus.emit(event);
   return event;
