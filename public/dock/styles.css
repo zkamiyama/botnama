@@ -331,6 +331,30 @@ button.danger {
   font-size: 11px;
 }
 
+.rule-section {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rule-section:last-child {
+  border-bottom: none;
+}
+
+.rule-group {
+  margin-left: 24px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: opacity 0.2s ease;
+}
+
+.rule-group.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 #tabDebug {
   min-height: 0;
 }

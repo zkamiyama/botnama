@@ -1116,6 +1116,25 @@ const renderSystem = (info) => {
   refreshYtDlpEjsButton.disabled = false;
 };
 
+const updateRuleUiState = () => {
+  const maxGroup = document.getElementById("ruleMaxDurationGroup");
+  if (maxGroup && ruleEnableToggle) {
+    maxGroup.classList.toggle("disabled", !ruleEnableToggle.checked);
+  }
+  const pollGroup = document.getElementById("rulePollGroup");
+  if (pollGroup && rulePollEnableToggle) {
+    pollGroup.classList.toggle("disabled", !rulePollEnableToggle.checked);
+  }
+  const dupGroup = document.getElementById("ruleDuplicateGroup");
+  if (dupGroup && ruleNoDuplicateToggle) {
+    dupGroup.classList.toggle("disabled", !ruleNoDuplicateToggle.checked);
+  }
+};
+
+ruleEnableToggle?.addEventListener("change", updateRuleUiState);
+rulePollEnableToggle?.addEventListener("change", updateRuleUiState);
+ruleNoDuplicateToggle?.addEventListener("change", updateRuleUiState);
+
 const renderRules = (rules) => {
   if (!rules) return;
   if (ruleEnableToggle) ruleEnableToggle.checked = Boolean(rules.maxDurationEnabled);
@@ -1138,6 +1157,7 @@ const renderRules = (rules) => {
   if (rulePollStopDelayInput && typeof rules.pollStopDelaySec === "number") {
     rulePollStopDelayInput.value = String(rules.pollStopDelaySec);
   }
+  updateRuleUiState();
 };
 
 ruleSaveButton?.addEventListener("click", async () => {

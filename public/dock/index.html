@@ -111,45 +111,60 @@
           </div>
           <div class="tab-panel" id="tabRules">
             <div class="rule-card">
-              <div class="rule-row">
-                <label>
-                  <input type="checkbox" id="ruleEnableToggle" />
-                  <span data-i18n="rule_enable">Enable max duration</span>
-                </label>
+              <div class="rule-section">
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="ruleEnableToggle" />
+                    <span data-i18n="rule_enable">Enable max duration</span>
+                  </label>
+                </div>
+                <div class="rule-group" id="ruleMaxDurationGroup">
+                  <div class="rule-row">
+                    <label for="ruleMaxDuration" data-i18n="rule_max">Max duration (minutes)</label>
+                    <input type="number" id="ruleMaxDuration" min="1" max="180" step="1" value="10" />
+                  </div>
+                </div>
               </div>
-              <div class="rule-row">
-                <label>
-                  <input type="checkbox" id="rulePollEnableToggle" />
-                  <span data-i18n="rule_poll_enable">Enable continuation poll</span>
-                </label>
+
+              <div class="rule-section">
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="rulePollEnableToggle" />
+                    <span data-i18n="rule_poll_enable">Enable continuation poll</span>
+                  </label>
+                </div>
+                <div class="rule-group" id="rulePollGroup">
+                  <div class="rule-row">
+                    <label for="rulePollInterval" data-i18n="rule_poll_interval">Ask every (sec)</label>
+                    <input type="number" id="rulePollInterval" min="10" max="600" step="5" value="90" />
+                  </div>
+                  <div class="rule-row">
+                    <label for="rulePollWindow" data-i18n="rule_poll_window">Voting window (sec)</label>
+                    <input type="number" id="rulePollWindow" min="5" max="120" step="5" value="20" />
+                  </div>
+                  <div class="rule-row">
+                    <label for="rulePollStopDelay" data-i18n="rule_poll_stop_delay">Stop delay after rejection (sec)</label>
+                    <input type="number" id="rulePollStopDelay" min="1" max="60" step="1" value="10" />
+                  </div>
+                </div>
               </div>
-              <div class="rule-row">
-                <label for="rulePollInterval" data-i18n="rule_poll_interval">Ask every (sec)</label>
-                <input type="number" id="rulePollInterval" min="10" max="600" step="5" value="90" />
+
+              <div class="rule-section">
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="ruleNoDuplicateToggle" />
+                    <span data-i18n="rule_no_duplicate">Block duplicate requests</span>
+                  </label>
+                </div>
+                <div class="rule-group" id="ruleDuplicateGroup">
+                  <div class="rule-row">
+                    <label for="ruleCooldownMinutes" data-i18n="rule_cooldown">Cooldown after playback (minutes)</label>
+                    <input type="number" id="ruleCooldownMinutes" min="0" max="1440" step="1" value="60" />
+                  </div>
+                  <p class="rule-hint" id="ruleCooldownHint" data-i18n="rule_cooldown_hint">0 = cannot request again until queue is cleared</p>
+                </div>
               </div>
-              <div class="rule-row">
-                <label for="rulePollWindow" data-i18n="rule_poll_window">Voting window (sec)</label>
-                <input type="number" id="rulePollWindow" min="5" max="120" step="5" value="20" />
-              </div>
-              <div class="rule-row">
-                <label for="rulePollStopDelay" data-i18n="rule_poll_stop_delay">Stop delay after rejection (sec)</label>
-                <input type="number" id="rulePollStopDelay" min="1" max="60" step="1" value="10" />
-              </div>
-              <div class="rule-row">
-                <label for="ruleMaxDuration" data-i18n="rule_max">Max duration (minutes)</label>
-                <input type="number" id="ruleMaxDuration" min="1" max="180" step="1" value="10" />
-              </div>
-              <div class="rule-row">
-                <label>
-                  <input type="checkbox" id="ruleNoDuplicateToggle" />
-                  <span data-i18n="rule_no_duplicate">Block duplicate requests</span>
-                </label>
-              </div>
-              <div class="rule-row">
-                <label for="ruleCooldownMinutes" data-i18n="rule_cooldown">Cooldown after playback (minutes)</label>
-                <input type="number" id="ruleCooldownMinutes" min="0" max="1440" step="1" value="60" />
-              </div>
-              <p class="rule-hint" id="ruleCooldownHint" data-i18n="rule_cooldown_hint">0 = cannot request again until queue is cleared</p>
+
               <div class="rule-actions">
                 <button id="ruleSaveButton" type="button">Save</button>
               </div>
