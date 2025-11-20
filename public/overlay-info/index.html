@@ -52,13 +52,18 @@
       padding: 0 var(--padding);
       overflow: hidden;
       border-bottom: 0;
-      transform: translateX(100%);
+      --stack-translate-x: 100%;
+      --stack-translate-y: 0px;
+      transform: translateX(var(--stack-translate-x)) translateY(var(--stack-translate-y));
       opacity: 0;
       transition: transform 260ms ease, opacity 260ms ease;
       will-change: transform, opacity;
     }
-    .band.visible { transform: translateX(0); opacity: 1; }
-    .band.exit-left { transform: translateX(-100%); opacity: 0; }
+    .band.visible { --stack-translate-x: 0; opacity: 1; }
+    .band.exit-left { --stack-translate-x: -100%; opacity: 0; }
+    .band.stack-reflow {
+      transition: transform 250ms cubic-bezier(0.2, 0.7, 0.3, 1), opacity 260ms ease;
+    }
     .band[data-level="warn"] { background: linear-gradient(90deg, rgba(246,185,59,0.35), rgba(12,18,32,0.92)); }
     .band[data-level="error"] { background: linear-gradient(90deg, rgba(255,94,123,0.45), rgba(12,18,32,0.92)); }
     .band[data-scope="status"][data-level="warn"] { background: linear-gradient(90deg, rgba(246,185,59,0.22), rgba(12,18,32,0.9)); }

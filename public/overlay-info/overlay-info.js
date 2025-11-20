@@ -12,6 +12,7 @@ let source = null;
 const BAND_ANIM_IN_CLASS = "band-anim-in";
 const BAND_ANIM_OUT_CLASS = "band-anim-out";
 const BAND_ANIM_DURATION_MS = 360;
+const STACK_REORDER_DURATION_MS = 250;
 const MARQUEE_STATIC_MS = 3000;
 const MARQUEE_SPEED_PX_PER_SEC = 135;
 const MARQUEE_MIN_SCROLL_SEC = 3;
@@ -78,6 +79,12 @@ const createBandEntry = (scope) => {
     payloadEl,
     textClone: textCloneEl,
     timerId: null,
+    kind: null,
+    meta: {
+      requestId: null,
+      messageKey: null,
+      titleKey: null,
+    },
   };
 };
 
@@ -165,7 +172,8 @@ const cleanupBand = (entry) => {
   entry.band.remove();
 };
 
-const hideBand = (entry) => {
+const hideBand = (entry, options = {}) => {
+  const { immediate = false } = options;
   if (entry.timerId) {
     clearTimeout(entry.timerId);
     entry.timerId = null;
@@ -175,6 +183,10 @@ const hideBand = (entry) => {
     return;
   }
   activeBands.delete(entry);
+  if (immediate) {
+    cleanupBand(entry);
+    return;
+  }
   entry.band.classList.remove("visible");
   entry.band.classList.add("exit-left");
   triggerBandAnimation(entry.band, BAND_ANIM_OUT_CLASS);
@@ -197,12 +209,113 @@ const showBand = (entry, durationMs) => {
   entry.timerId = setTimeout(() => hideBand(entry), resolveDuration(durationMs));
 };
 
+const classifyPayloadKind = (payload) => {
+  if (!payload) return null;
+  if (payload.messageKey === "poll_question_body") {
+    return "poll-question";
+  }
+  if (payload.messageKey === "poll_result_body") {
+    return "poll-result";
+  }
+  const hasRequest = typeof payload.requestId === "string" && payload.requestId.length > 0;
+  const hasKeys = Boolean(payload.messageKey || payload.titleKey);
+  if (hasRequest && payload.scope === "info" && !hasKeys && !payload.stats) {
+    return "playback-info";
+  }
+  if (hasRequest && payload.scope === "status" && payload.stats) {
+    return "playback-stats";
+  }
+  return null;
+};
+
+const removeBandsByKind = (
+  kinds,
+  { immediate = false, excludeRequestId = null, collectAnchor = false } = {},
+) => {
+  if (!Array.isArray(kinds) || kinds.length === 0) return;
+  const anchors = [];
+  for (const entry of Array.from(activeBands)) {
+    if (entry.kind && kinds.includes(entry.kind)) {
+      if (excludeRequestId && entry.meta?.requestId === excludeRequestId) continue;
+      if (collectAnchor && entry.band.isConnected) {
+        anchors.push(entry.band.nextElementSibling ?? null);
+      }
+      hideBand(entry, { immediate });
+    }
+  }
+  return anchors;
+};
+
+const enforceExclusivity = (kind, payload) => {
+  const context = { anchorNode: null };
+  if (!kind) return context;
+  if (kind === "playback-info" || kind === "playback-stats") {
+    const currentRequestId = typeof payload?.requestId === "string" ? payload.requestId : null;
+    removeBandsByKind(["playback-info", "playback-stats"], {
+      immediate: true,
+      excludeRequestId: currentRequestId,
+    });
+    return context;
+  }
+  if (kind === "poll-result") {
+    const anchors = removeBandsByKind(["poll-question"], {
+      immediate: true,
+      collectAnchor: true,
+    }) || [];
+    context.anchorNode = anchors.find((node) => node instanceof Element) ?? null;
+  }
+  return context;
+};
+
+const captureStackPositions = () => {
+  const positions = new Map();
+  for (const entry of activeBands) {
+    if (entry.band.isConnected) {
+      positions.set(entry.band, entry.band.getBoundingClientRect().top);
+    }
+  }
+  return positions;
+};
+
+const animateStackReflow = (beforePositions) => {
+  if (!beforePositions || beforePositions.size === 0) return;
+  requestAnimationFrame(() => {
+    for (const entry of activeBands) {
+      const el = entry.band;
+      if (!el.isConnected) continue;
+      const prevTop = beforePositions.get(el);
+      if (prevTop === undefined) continue;
+      const nextTop = el.getBoundingClientRect().top;
+      const deltaY = prevTop - nextTop;
+      if (Math.abs(deltaY) < 1) continue;
+      el.classList.add("stack-reflow");
+      el.style.setProperty("--stack-translate-y", `${deltaY}px`);
+      requestAnimationFrame(() => {
+        el.style.setProperty("--stack-translate-y", "0px");
+      });
+      setTimeout(() => {
+        el.classList.remove("stack-reflow");
+        el.style.removeProperty("--stack-translate-y");
+      }, STACK_REORDER_DURATION_MS + 50);
+    }
+  });
+};
+
 const showMessage = (payload) => {
   if (!shouldDisplayPayload(payload)) return;
   const level = payload.level ?? "info";
   const scope = payload.scope === "status" ? "status" : "info";
+  const kind = classifyPayloadKind({ ...payload, scope });
+  const layoutBefore = activeBands.size > 0 ? captureStackPositions() : null;
+  const { anchorNode } = enforceExclusivity(kind, payload);
   const entry = createBandEntry(scope);
   const { band, marqueeEl, labelText: labelEl, labelWrap: wrapEl, payloadEl, textClone } = entry;
+  entry.kind = kind;
+  entry.meta = {
+    requestId: typeof payload.requestId === "string" ? payload.requestId : null,
+    messageKey: payload.messageKey ?? null,
+    titleKey: payload.titleKey ?? null,
+  };
 
   band.dataset.level = level;
   band.dataset.scope = scope;
@@ -258,10 +371,18 @@ const showMessage = (payload) => {
 
   payloadEl.dataset.rawStats = payload.stats ? JSON.stringify(payload.stats) : "";
   if (!band.isConnected) {
-    bandStack.appendChild(band);
+    const insertTarget = (anchorNode && anchorNode.isConnected && anchorNode.parentElement === bandStack)
+      ? anchorNode
+      : null;
+    if (insertTarget) {
+      bandStack.insertBefore(band, insertTarget);
+    } else {
+      bandStack.appendChild(band);
+    }
   }
   applyMarquee(band, payloadEl, textClone, marqueeEl);
   showBand(entry, payload.durationMs);
+  animateStackReflow(layoutBefore);
 };
 
 const formatYmd = (ts) => {
