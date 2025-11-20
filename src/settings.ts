@@ -12,6 +12,7 @@ const CONFIG_PATH = join(CONFIG_DIR, "settings.toml");
 const ENV_PATH = join(PROJECT_ROOT, ".env");
 const DEFAULT_YTDLP_BINARY = join(BIN_DIR, Deno.build.os === "windows" ? "yt-dlp.exe" : "yt-dlp");
 const DEFAULT_FFMPEG_BINARY = join(BIN_DIR, Deno.build.os === "windows" ? "ffmpeg.exe" : "ffmpeg");
+const DEFAULT_LOCALE = "auto";
 
 export const DEFAULT_SETTINGS: ServerSettings = {
   httpPort: 2101,
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: ServerSettings = {
   ytDlpCookiesFromBrowserProfile: null,
   ytDlpCookiesFromBrowserKeyring: null,
   ytDlpCookiesFromBrowserContainer: null,
+  locale: DEFAULT_LOCALE,
 };
 
 const coerceNumber = (value: unknown, fallback: number) => {
@@ -101,6 +103,7 @@ const mergeSettings = (raw: Record<string, unknown>): ServerSettings => {
       raw.ytDlpCookiesFromBrowserContainer,
       DEFAULT_SETTINGS.ytDlpCookiesFromBrowserContainer,
     ),
+    locale: coerceString(raw.locale, DEFAULT_SETTINGS.locale),
   };
   merged.ytDlpCookiesFromBrowser = applyEnvOverride(
     merged.ytDlpCookiesFromBrowser,
@@ -118,6 +121,8 @@ const mergeSettings = (raw: Record<string, unknown>): ServerSettings => {
     merged.ytDlpCookiesFromBrowserContainer,
     "BOTNAMA_YTDLP_COOKIES_CONTAINER",
   );
+  const envLocale = envString("BOTNAMA_LOCALE");
+  if (envLocale) merged.locale = envLocale;
   return merged;
 };
 

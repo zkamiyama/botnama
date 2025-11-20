@@ -35,6 +35,16 @@ const createSchema = (db: DatabaseSync) => {
       title TEXT,
       duration_sec INTEGER,
       thumbnail_url TEXT,
+      uploaded_at INTEGER,
+      view_count INTEGER,
+      like_count INTEGER,
+      dislike_count INTEGER,
+      comment_count INTEGER,
+      mylist_count INTEGER,
+      favorite_count INTEGER,
+      danmaku_count INTEGER,
+      meta_refreshed_at INTEGER,
+      uploader TEXT,
       status TEXT NOT NULL,
       status_reason TEXT,
       queue_position INTEGER,
@@ -50,6 +60,24 @@ const createSchema = (db: DatabaseSync) => {
     CREATE INDEX IF NOT EXISTS idx_requests_queue ON requests(queue_position);
 
   `);
+
+  const ensureColumn = (table: string, column: string, definition: string) => {
+    const info = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (!info.some((row) => row.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  };
+
+  ensureColumn("requests", "uploaded_at", "INTEGER");
+  ensureColumn("requests", "view_count", "INTEGER");
+  ensureColumn("requests", "like_count", "INTEGER");
+  ensureColumn("requests", "dislike_count", "INTEGER");
+  ensureColumn("requests", "comment_count", "INTEGER");
+  ensureColumn("requests", "mylist_count", "INTEGER");
+  ensureColumn("requests", "favorite_count", "INTEGER");
+  ensureColumn("requests", "danmaku_count", "INTEGER");
+  ensureColumn("requests", "meta_refreshed_at", "INTEGER");
+  ensureColumn("requests", "uploader", "TEXT");
 };
 
 export const getDb = () => {

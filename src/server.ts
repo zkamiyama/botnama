@@ -6,12 +6,20 @@ import { RequestService } from "./services/requestService.ts";
 import { DownloadWorker } from "./services/downloadWorker.ts";
 import { loadServerSettings } from "./settings.ts";
 import { bootstrapEnvironment } from "./bootstrap.ts";
+import { initRuleState } from "./services/ruleService.ts";
 import { join } from "@std/path/join";
 import { extname } from "@std/path/extname";
 import { contentType } from "@std/media-types";
 
 const settings = loadServerSettings();
 await bootstrapEnvironment(settings);
+initRuleState(settings.maxVideoDurationSec);
+const resolvedLocale = (() => {
+  const envLocale = Deno.env.get("BOTNAMA_LOCALE");
+  if (envLocale && envLocale.trim().length > 0) return envLocale.trim();
+  if (settings.locale && settings.locale !== "auto") return settings.locale;
+  return "auto";
+})();
 
 const overlayHub = new OverlayHub();
 const requestService = new RequestService(overlayHub, { cacheDir: settings.cacheDir });
@@ -61,8 +69,13 @@ app.get("/dock", (c) => c.redirect("/dock/"));
 app.get("/dock/", serveStatic({ path: "./public/dock/index.html" }));
 app.get("/overlay/", serveStatic({ path: "./public/overlay/index.html" }));
 app.get("/overlay", (c) => c.redirect("/overlay/"));
+app.get("/overlay-info/", serveStatic({ path: "./public/overlay-info/index.html" }));
+app.get("/overlay-info", (c) => c.redirect("/overlay-info/"));
+app.get("/favicon.ico", serveStatic({ path: "./public/favicon.ico" }));
 app.use("/dock/*", serveStatic({ root: "./public" }));
 app.use("/overlay/*", serveStatic({ root: "./public" }));
+app.use("/overlay-info/*", serveStatic({ root: "./public" }));
+app.get("/i18n.js", serveStatic({ path: "./public/i18n.js" }));
 app.use(
   "/icons/*",
   serveStatic({
@@ -72,6 +85,11 @@ app.use(
 );
 app.use("/vendor/*", serveStatic({ root: "./public" }));
 app.use("/static/*", serveStatic({ root: "./public" }));
+
+app.get("/api/locale", () =>
+  new Response(JSON.stringify({ locale: resolvedLocale }), {
+    headers: { "content-type": "application/json" },
+  }));
 
 app.get("/media/:file", async (c) => {
   const fileName = c.req.param("file");

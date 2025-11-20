@@ -1,5 +1,6 @@
 import { getDb } from "../db.ts";
 import { DOCK_EVENT, emitDockEvent } from "../events/dockEventBus.ts";
+import { emitInfoOverlay } from "../events/infoOverlayBus.ts";
 import {
   ParsedUrl,
   Platform,
@@ -24,6 +25,15 @@ type RequestRow = {
   title: string | null;
   duration_sec: number | null;
   thumbnail_url: string | null;
+  uploaded_at: number | null;
+  view_count: number | null;
+  like_count: number | null;
+  dislike_count: number | null;
+  comment_count: number | null;
+  mylist_count: number | null;
+  favorite_count: number | null;
+  danmaku_count: number | null;
+  uploader: string | null;
   status: RequestStatus;
   status_reason: string | null;
   queue_position: number | null;
@@ -32,6 +42,7 @@ type RequestRow = {
   file_name: string | null;
   cache_file_path: string | null;
   cache_file_size: number | null;
+  meta_refreshed_at: number | null;
 };
 
 type SqliteValue = string | number | bigint | Uint8Array | null;
@@ -75,8 +86,18 @@ const rowToRequest = (row: RequestRow): RequestItem => ({
     : null,
   title: row.title,
   durationSec: row.duration_sec,
+  uploadedAt: row.uploaded_at,
+  viewCount: row.view_count,
+  likeCount: row.like_count,
+  dislikeCount: row.dislike_count,
+  commentCount: row.comment_count,
+  mylistCount: row.mylist_count,
+  favoriteCount: row.favorite_count,
+  danmakuCount: row.danmaku_count,
+  uploader: row.uploader,
   fileName: row.file_name,
   cacheFilePath: row.cache_file_path,
+  metaRefreshedAt: row.meta_refreshed_at ?? null,
   status: row.status,
   statusReason: row.status_reason,
   queuePosition: row.queue_position,
@@ -127,17 +148,21 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
       comment_id, platform, user_name, original_message,
       url, parsed_site, parsed_video_id, parsed_normalized_url,
       title, duration_sec, thumbnail_url,
+      uploaded_at, view_count, like_count, dislike_count, comment_count,
+      mylist_count, favorite_count, danmaku_count, uploader,
       status, status_reason, queue_position,
       play_started_at, play_ended_at,
-      file_name, cache_file_path, cache_file_size
+      file_name, cache_file_path, cache_file_size, meta_refreshed_at
     ) VALUES (
       :id, :createdAt, :updatedAt,
       :commentId, :platform, :userName, :originalMessage,
       :url, :parsedSite, :parsedVideoId, :parsedNormalizedUrl,
       :title, :durationSec, :thumbnailUrl,
+      :uploadedAt, :viewCount, :likeCount, :dislikeCount, :commentCount,
+      :mylistCount, :favoriteCount, :danmakuCount, :uploader,
       :status, :statusReason, :queuePosition,
       :playStartedAt, :playEndedAt,
-      :fileName, :cacheFilePath, :cacheFileSize
+      :fileName, :cacheFilePath, :cacheFileSize, :metaRefreshedAt
     )
   `);
   stmt.run({
@@ -155,6 +180,15 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
     title: null,
     durationSec: null,
     thumbnailUrl: null,
+    uploadedAt: null,
+    viewCount: null,
+    likeCount: null,
+    dislikeCount: null,
+    commentCount: null,
+    mylistCount: null,
+    favoriteCount: null,
+    danmakuCount: null,
+    uploader: null,
     status: input.status,
     statusReason: null,
     queuePosition,
@@ -163,12 +197,23 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
     fileName: null,
     cacheFilePath: null,
     cacheFileSize: null,
+    metaRefreshedAt: null,
   });
   const row = getById(input.id);
   if (!row) {
     throw new Error("failed to fetch newly inserted request");
   }
   emitDockEvent(DOCK_EVENT.REQUESTS);
+  emitInfoOverlay({
+    level: "info",
+    titleKey: "request_accepted_title",
+    messageKey: "request_accepted_full",
+    params: { url: row.url },
+    requestId: row.id,
+    userName: row.userName,
+    url: row.url,
+    scope: "status",
+  });
   return row;
 };
 
@@ -208,11 +253,49 @@ export const updateRequestFields = (
 };
 
 export const updateStatus = (id: string, status: RequestStatus, reason?: string | null) => {
-  return updateRequestFields(id, {
+  const before = getById(id);
+  const updated = updateRequestFields(id, {
     status,
     status_reason: reason ?? null,
     queue_position: status === "DONE" ? null : undefined,
   });
+  const detail = reason ?? updated.statusReason ?? undefined;
+  if (status === "READY" && reason !== "STOP" && (!before || before.status !== "READY")) {
+    emitInfoOverlay({
+      level: "info",
+      titleKey: "request_ready_title",
+      messageKey: "body_url_only",
+      params: { url: updated.url },
+      requestId: updated.id,
+      userName: updated.userName,
+      url: updated.url,
+      scope: "info",
+    });
+  }
+  if (status === "REJECTED") {
+    emitInfoOverlay({
+      level: "warn",
+      titleKey: "request_rejected_title",
+      messageKey: "body_with_reason",
+      params: { reason: detail ?? "rejected", url: updated.url },
+      requestId: updated.id,
+      userName: updated.userName,
+      url: updated.url,
+      scope: "status",
+    });
+  } else if (status === "FAILED") {
+    emitInfoOverlay({
+      level: "error",
+      titleKey: "request_failed_title",
+      messageKey: "body_with_reason",
+      params: { reason: detail ?? "error", url: updated.url },
+      requestId: updated.id,
+      userName: updated.userName,
+      url: updated.url,
+      scope: "status",
+    });
+  }
+  return updated;
 };
 
 export const updatePlaybackTimestamps = (id: string, start: number | null, end: number | null) => {
@@ -262,8 +345,17 @@ export const reorderRequestPosition = (id: string, desiredPosition: number): Req
 
 export const getById = (id: string): RequestItem | null => {
   const db = getDb();
-  const stmt = db.prepare(`SELECT * FROM requests WHERE id = ? LIMIT 1`);
-  const row = stmt.get(id) as RequestRow | undefined;
+  const row = db.prepare("SELECT * FROM requests WHERE id = :id").get({ id }) as
+    | RequestRow
+    | undefined;
+  return row ? rowToRequest(row) : null;
+};
+
+export const getCurrentPlaying = (): RequestItem | null => {
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM requests WHERE status = 'PLAYING' LIMIT 1").get() as
+    | RequestRow
+    | undefined;
   return row ? rowToRequest(row) : null;
 };
 
@@ -336,11 +428,49 @@ export const listDownloadableRequests = (limit: number) => {
   return rows.map(rowToRequest);
 };
 
+export const findActiveByVideo = (site: string, videoId: string) => {
+  const db = getDb();
+  const stmt = db.prepare(`
+    SELECT * FROM requests
+    WHERE parsed_site = :site
+      AND parsed_video_id = :videoId
+      AND status IN ('QUEUED','VALIDATING','DOWNLOADING','READY','PLAYING','SUSPEND')
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+  const row = stmt.get({ site, videoId }) as RequestRow | undefined;
+  return row ? rowToRequest(row) : null;
+};
+
+export const findLatestByVideo = (site: string, videoId: string) => {
+  const db = getDb();
+  const stmt = db.prepare(`
+    SELECT * FROM requests
+    WHERE parsed_site = :site
+      AND parsed_video_id = :videoId
+    ORDER BY
+      COALESCE(play_ended_at, updated_at, created_at) DESC
+    LIMIT 1
+  `);
+  const row = stmt.get({ site, videoId }) as RequestRow | undefined;
+  return row ? rowToRequest(row) : null;
+};
+
 export const updateDownloadMetadata = (
   id: string,
   metadata: {
     title?: string | null;
     durationSec?: number | null;
+    uploadedAt?: number | null;
+    viewCount?: number | null;
+    likeCount?: number | null;
+    dislikeCount?: number | null;
+    commentCount?: number | null;
+    mylistCount?: number | null;
+    favoriteCount?: number | null;
+    danmakuCount?: number | null;
+    uploader?: string | null;
+    metaRefreshedAt?: number | null;
     fileName?: string | null;
     cacheFilePath?: string | null;
     cacheFileSize?: number | null;
@@ -349,6 +479,16 @@ export const updateDownloadMetadata = (
   const patch: Record<string, SqliteValue | undefined> = {};
   if (metadata.title !== undefined) patch.title = metadata.title;
   if (metadata.durationSec !== undefined) patch.duration_sec = metadata.durationSec;
+   if (metadata.uploadedAt !== undefined) patch.uploaded_at = metadata.uploadedAt;
+   if (metadata.viewCount !== undefined) patch.view_count = metadata.viewCount;
+   if (metadata.likeCount !== undefined) patch.like_count = metadata.likeCount;
+   if (metadata.dislikeCount !== undefined) patch.dislike_count = metadata.dislikeCount;
+  if (metadata.commentCount !== undefined) patch.comment_count = metadata.commentCount;
+  if (metadata.mylistCount !== undefined) patch.mylist_count = metadata.mylistCount;
+  if (metadata.favoriteCount !== undefined) patch.favorite_count = metadata.favoriteCount;
+  if (metadata.danmakuCount !== undefined) patch.danmaku_count = metadata.danmakuCount;
+  if (metadata.uploader !== undefined) patch.uploader = metadata.uploader;
+  if (metadata.metaRefreshedAt !== undefined) patch.meta_refreshed_at = metadata.metaRefreshedAt;
   if (metadata.fileName !== undefined) patch.file_name = metadata.fileName;
   if (metadata.cacheFilePath !== undefined) patch.cache_file_path = metadata.cacheFilePath;
   if (metadata.cacheFileSize !== undefined) patch.cache_file_size = metadata.cacheFileSize;

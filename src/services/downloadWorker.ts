@@ -1,4 +1,5 @@
 import { ensureDirSync } from "@std/fs/ensure-dir";
+import { getEffectiveMaxDurationSec } from "./ruleService.ts";
 import { join } from "@std/path/join";
 import * as posix from "@std/path/posix";
 import { extname } from "@std/path/extname";
@@ -11,6 +12,7 @@ import {
 } from "../repositories/requestsRepository.ts";
 import { RequestItem, ServerSettings } from "../types.ts";
 import { loadServerSettings } from "../settings.ts";
+import { fetchVideoMetadata } from "./metadataService.ts";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_BASE_LENGTH = 240;
@@ -40,6 +42,15 @@ interface DownloadArtifact {
 interface YtDlpMetadata {
   title: string | null;
   duration: number | null;
+  uploader: string | null;
+  uploadDate: number | null; // ms epoch
+  viewCount: number | null;
+  likeCount: number | null;
+  dislikeCount: number | null;
+  commentCount: number | null;
+  mylistCount: number | null;
+  favoriteCount: number | null;
+  danmakuCount: number | null;
 }
 
 interface CacheTargets {
@@ -146,18 +157,30 @@ export class DownloadWorker {
     const targets = this.#prepareCacheTargets(request, settings);
     console.log(`[worker] processing ${request.id} (${request.url}) -> ${targets.fileName}`);
     updateStatus(request.id, "VALIDATING");
-    const metadata = await this.#fetchMetadata(request.url, settings);
+    const metadata = await fetchVideoMetadata(request.url, settings);
     if (!metadata) {
-      updateStatus(request.id, "FAILED", "メタデータ取得に失敗しました");
+      updateStatus(request.id, "FAILED", "metadata fetch failed");
       return;
     }
-    if (metadata.duration && metadata.duration > settings.maxVideoDurationSec) {
-      updateStatus(request.id, "REJECTED", `動画が長すぎます (${metadata.duration}s)`);
+    const effectiveLimit = getEffectiveMaxDurationSec();
+    if (metadata.duration && metadata.duration > effectiveLimit) {
+      updateStatus(request.id, "REJECTED", `too long (${metadata.duration}s)`);
       return;
     }
+    const fetchedAt = Date.now();
     updateDownloadMetadata(request.id, {
       title: metadata.title ?? null,
       durationSec: metadata.duration ?? null,
+      uploader: metadata.uploader,
+      uploadedAt: metadata.uploadDate,
+      viewCount: metadata.viewCount,
+      likeCount: metadata.likeCount,
+      dislikeCount: metadata.dislikeCount,
+      commentCount: metadata.commentCount,
+      mylistCount: metadata.mylistCount,
+      favoriteCount: metadata.favoriteCount,
+      danmakuCount: metadata.danmakuCount,
+      metaRefreshedAt: fetchedAt,
     });
 
     if (await this.#fileExists(targets.absolutePath)) {
@@ -186,37 +209,6 @@ export class DownloadWorker {
     } catch (err) {
       console.error("download pipeline failed", err);
       updateStatus(request.id, "FAILED", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async #fetchMetadata(url: string, settings: ServerSettings): Promise<YtDlpMetadata | null> {
-    const metadataArgs = ["--dump-json", "--skip-download", ...this.#buildCookieArgs(settings), url];
-    console.log(
-      `[worker] running yt-dlp metadata: ${settings.ytDlpPath} ${metadataArgs.join(" ")}`,
-    );
-    const command = new Deno.Command(settings.ytDlpPath, {
-      args: metadataArgs,
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const output = await command.output().catch((err) => {
-      console.error("yt-dlp metadata error", err);
-      return null;
-    });
-    if (!output || output.code !== 0) {
-      console.error(new TextDecoder().decode(output?.stderr ?? new Uint8Array()));
-      return null;
-    }
-    try {
-      const text = new TextDecoder().decode(output.stdout);
-      const data = JSON.parse(text);
-      return {
-        title: data.title ?? null,
-        duration: typeof data.duration === "number" ? data.duration : null,
-      };
-    } catch (err) {
-      console.error("failed to parse metadata", err);
-      return null;
     }
   }
 

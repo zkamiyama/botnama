@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env=READABLE_STREAM,BOTNAMA_YTDLP_COOKIES_BROWSER,BOTNAMA_YTDLP_COOKIES_PROFILE,BOTNAMA_YTDLP_COOKIES_KEYRING,BOTNAMA_YTDLP_COOKIES_CONTAINER src/server.ts",
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env=READABLE_STREAM,BOTNAMA_YTDLP_COOKIES_BROWSER,BOTNAMA_YTDLP_COOKIES_PROFILE,BOTNAMA_YTDLP_COOKIES_KEYRING,BOTNAMA_YTDLP_COOKIES_CONTAINER,BOTNAMA_LOCALE src/server.ts",
     "setup": "deno run --allow-net --allow-read --allow-write --allow-run=git,tar scripts/setup.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",

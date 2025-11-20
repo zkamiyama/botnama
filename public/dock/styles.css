@@ -63,8 +63,8 @@ section {
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-width: 160px;
+  gap: 8px;
+  min-width: 48px;
 }
 
 .status-dot {
@@ -151,6 +151,26 @@ button:disabled {
 }
 
 #stopButton.paused img {
+  filter: invert(1);
+}
+
+#autoButton.paused {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+}
+
+#autoButton.paused img {
+  filter: invert(1);
+}
+
+#intakeButton.paused {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+}
+
+#intakeButton.paused img {
   filter: invert(1);
 }
 
@@ -271,8 +291,63 @@ button.danger {
   min-height: 14px;
 }
 
+#tabRules {
+  min-height: 0;
+}
+
+#tabRules .rule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#tabRules .rule-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+#tabRules .rule-row input[type="checkbox"] {
+  margin-right: 4px;
+}
+#tabRules input[type="number"] {
+  width: 110px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text-strong);
+  border-radius: 4px;
+}
+#tabRules label {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+#tabRules .rule-actions {
+  display: flex;
+  gap: 8px;
+}
+#tabRules .rule-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 #tabDebug {
   min-height: 0;
+}
+
+#tabDebug .locale-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#tabDebug select {
+  background: var(--panel);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
 }
 
 #tabDebug .comment-table {
@@ -319,16 +394,19 @@ button.danger {
 }
 
 .queue-title-link {
+  flex: 1;
   color: var(--text-strong);
   text-decoration: none;
   font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  user-select: none;
+  cursor: default;
 }
 
 .queue-title-link:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .status-chip {
@@ -614,4 +692,18 @@ button.danger {
   .queue-list {
     max-height: none;
   }
+}
+.metric-label {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.metric-value {
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.metric-count {
+  min-width: 56px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }

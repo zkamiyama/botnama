@@ -17,6 +17,18 @@ import { OverlayHub } from "../websocket/overlayHub.ts";
 import { DOCK_EVENT, emitDockEvent } from "../events/dockEventBus.ts";
 import { join } from "@std/path/join";
 import { resolve } from "@std/path/resolve";
+import { isIntakePaused, toggleIntake } from "./requestGate.ts";
+import { emitInfoOverlay } from "../events/infoOverlayBus.ts";
+import { fetchVideoMetadata } from "./metadataService.ts";
+import { loadServerSettings } from "../settings.ts";
+import {
+  configurePollRules,
+  handleVote,
+  onPlaybackStarted,
+  resetPoll,
+  setPollRejectHandler,
+} from "./pollService.ts";
+import { getPollRule } from "./ruleService.ts";
 
 const ORDER_EDITABLE_STATUSES = new Set<RequestStatus>([
   "QUEUED",
@@ -61,11 +73,17 @@ export class RequestService {
   #overlayHub: OverlayHub;
   #currentPlayingId: string | null = null;
   #autoplayPaused = false;
+  #playbackPaused = false;
+  #pausedPositionSec = 0;
   #cacheDir: string | null;
+  #metaStaleMs = 6 * 60 * 60 * 1000; // 6 hours
 
   constructor(overlayHub: OverlayHub, options: { cacheDir?: string } = {}) {
     this.#overlayHub = overlayHub;
     this.#cacheDir = options.cacheDir ?? null;
+    setPollRejectHandler(() => {
+      this.stopPlayback();
+    });
   }
 
   list(
@@ -79,6 +97,7 @@ export class RequestService {
     downloadingCount: number;
     currentPlayingId: string | null;
     autoplayPaused: boolean;
+    intakePaused: boolean;
     currentPlayback: {
       id: string;
       title: string | null;
@@ -95,24 +114,37 @@ export class RequestService {
       downloadingCount: countByStatus("DOWNLOADING"),
       currentPlayingId: this.#currentPlayingId,
       autoplayPaused: this.#autoplayPaused,
+      intakePaused: isIntakePaused(),
       currentPlayback,
     };
   }
 
-  play(requestId: string) {
-    const request = getById(requestId);
+  async play(requestId: string) {
+    let request = getById(requestId);
     if (!request) {
-      throw new Error("指定したリクエストが存在しません");
+      throw new Error("request not found");
     }
     if (!request.fileName) {
-      throw new Error("動画がまだキャッシュされていません");
+      throw new Error("media not cached yet");
     }
     if (!["READY", "DONE"].includes(request.status)) {
-      throw new Error("READY もしくは DONE 状態のリクエストのみ再生できます");
+      throw new Error("only READY or DONE can be played");
     }
     if (!this.#ensureCachedMediaAvailable(request)) {
-      throw new Error("キャッシュが存在しないため再ダウンロードを開始しました");
+      throw new Error("cache missing; re-download started");
     }
+    try {
+      request = await this.#refreshMetadataIfStale(request);
+    } catch (err) {
+      console.warn("[RequestService] metadata refresh failed", err);
+    }
+    // configure poll for this playback
+    configurePollRules({
+      enabled: getPollRule().enabled,
+      intervalSec: getPollRule().intervalSec,
+      voteWindowSec: getPollRule().windowSec,
+      stopDelaySec: getPollRule().stopDelaySec,
+    });
     console.log(`[RequestService] play -> ${requestId} (status=${request.status})`);
     resetPlayingExcept(requestId);
     const updated = updateRequestFields(request.id, {
@@ -120,6 +152,8 @@ export class RequestService {
       play_started_at: Date.now(),
       play_ended_at: null,
     });
+    this.#playbackPaused = false;
+    this.#pausedPositionSec = 0;
     if (this.#currentPlayingId && this.#currentPlayingId !== request.id) {
       console.log(
         `[RequestService] stopping previous overlay playback ${this.#currentPlayingId} before ${request.id}`,
@@ -127,14 +161,49 @@ export class RequestService {
       this.#overlayHub.stop(100);
     }
     this.#overlayHub.play(updated);
+    onPlaybackStarted(updated);
     this.#currentPlayingId = updated.id;
+    emitDockEvent(DOCK_EVENT.REQUESTS);
     console.log(`[RequestService] overlay play signal sent for ${updated.id}`);
+    // 1) タイトル帯（上段）：再生開始ラベルは付けず、タイトルのみ
+    emitInfoOverlay({
+      level: "info",
+      message: updated.title ?? updated.url,
+      requestId: updated.id,
+      userName: updated.userName,
+      url: updated.url,
+      scope: "info",
+    });
+    // 2) 統計帯（下段）：URL＋統計のみ
+    emitInfoOverlay({
+      level: "info",
+      messageKey: "body_url_only",
+      params: { url: updated.url },
+      requestId: updated.id,
+      userName: updated.userName,
+      url: updated.url,
+      scope: "status",
+      stats: {
+        uploadedAt: updated.uploadedAt ?? null,
+        durationSec: updated.durationSec ?? null,
+        viewCount: updated.viewCount ?? null,
+        likeCount: updated.likeCount ?? null,
+        dislikeCount: updated.dislikeCount ?? null,
+        commentCount: updated.commentCount ?? null,
+        mylistCount: updated.mylistCount ?? null,
+        favoriteCount: updated.favoriteCount ?? null,
+        danmakuCount: updated.danmakuCount ?? null,
+        uploader: updated.uploader ?? null,
+        site: updated.parsed?.site ?? "other",
+        metaRefreshedAt: updated.metaRefreshedAt ?? Date.now(),
+      },
+    });
     return updated;
   }
 
   skip(requestId: string) {
     const request = getById(requestId);
-    if (!request) throw new Error("対象リクエストが存在しません");
+    if (!request) throw new Error("request not found");
     console.log(`[RequestService] skip -> ${requestId}`);
     const updated = updateStatus(request.id, "DONE");
     updatePlaybackTimestamps(updated.id, updated.playStartedAt, Date.now());
@@ -161,14 +230,14 @@ export class RequestService {
 
   reorderQueue(requestId: string, desiredPosition: number) {
     if (!Number.isFinite(desiredPosition) || desiredPosition < 1) {
-      throw new Error("position は 1 以上の数値で指定してください");
+      throw new Error("position must be >= 1");
     }
     const request = getById(requestId);
     if (!request) {
-      throw new Error("指定したリクエストが存在しません");
+      throw new Error("request not found");
     }
     if (!ORDER_EDITABLE_STATUSES.has(request.status)) {
-      throw new Error("この状態では順番を変更できません");
+      throw new Error("order cannot be changed in this state");
     }
     console.log(`[RequestService] reorder -> ${requestId} -> ${desiredPosition}`);
     const updated = reorderRequestPosition(requestId, desiredPosition);
@@ -180,19 +249,20 @@ export class RequestService {
 
   seekPlayback(positionSec: number) {
     if (!this.#currentPlayingId) {
-      throw new Error("現在再生中のトラックがありません");
+      throw new Error("no track is playing");
     }
     const request = getById(this.#currentPlayingId);
     if (!request || request.status !== "PLAYING") {
-      throw new Error("再生中のトラックが見つかりません");
+      throw new Error("playing track not found");
     }
     const duration = request.durationSec ?? Number.POSITIVE_INFINITY;
     const clamped = Math.max(0, Math.min(duration, positionSec));
-    const playStartedAt = Date.now() - clamped * 1000;
+    const playStartedAt = this.#playbackPaused ? null : Date.now() - clamped * 1000;
     updateRequestFields(request.id, { play_started_at: playStartedAt, play_ended_at: null });
+    this.#pausedPositionSec = clamped;
     this.#overlayHub.seek(clamped);
     emitDockEvent(DOCK_EVENT.REQUESTS);
-    return { positionSec: clamped, durationSec: request.durationSec ?? null };
+    return { positionSec: clamped, durationSec: request.durationSec ?? null, isPlaying: !this.#playbackPaused };
   }
 
   suspendRequests(requestIds: string[]) {
@@ -230,6 +300,8 @@ export class RequestService {
     updatePlaybackTimestamps(requestId, request.playStartedAt ?? Date.now(), Date.now());
     if (this.#currentPlayingId === requestId) {
       this.#currentPlayingId = null;
+      this.#playbackPaused = false;
+      this.#pausedPositionSec = 0;
     }
     this.playNextReady();
   }
@@ -239,11 +311,60 @@ export class RequestService {
     updateStatus(requestId, "FAILED", reason);
     if (this.#currentPlayingId === requestId) {
       this.#currentPlayingId = null;
+      this.#playbackPaused = false;
+      this.#pausedPositionSec = 0;
     }
     this.playNextReady();
   }
 
   stopPlayback() {
+    if (!this.#currentPlayingId) return null;
+    const request = getById(this.#currentPlayingId);
+    this.#overlayHub.stop(200);
+    this.#autoplayPaused = true;
+    this.#playbackPaused = false;
+    this.#pausedPositionSec = 0;
+    if (request) {
+      updateStatus(request.id, "READY", "STOP");
+      updatePlaybackTimestamps(request.id, null, null);
+    }
+    resetPoll();
+    this.#currentPlayingId = null;
+    emitDockEvent(DOCK_EVENT.REQUESTS);
+    emitInfoOverlay({
+      level: "warn",
+      messageKey: "request_stop_full",
+      params: { url: request?.url ?? "" },
+      scope: "status",
+    });
+    return request;
+  }
+
+  async #refreshMetadataIfStale(request: RequestItem): Promise<RequestItem> {
+    const last = request.metaRefreshedAt ?? 0;
+    const now = Date.now();
+    if (now - last < this.#metaStaleMs) return request;
+    const settings = loadServerSettings();
+    const meta = await fetchVideoMetadata(request.url, settings);
+    if (!meta) return request;
+    const updated = updateRequestFields(request.id, {
+      title: meta.title ?? request.title,
+      duration_sec: meta.duration ?? request.durationSec,
+      uploader: meta.uploader ?? request.uploader,
+      uploaded_at: meta.uploadDate ?? request.uploadedAt,
+      view_count: meta.viewCount ?? request.viewCount,
+      like_count: meta.likeCount ?? request.likeCount,
+      dislike_count: meta.dislikeCount ?? request.dislikeCount,
+      comment_count: meta.commentCount ?? request.commentCount,
+      mylist_count: meta.mylistCount ?? request.mylistCount,
+      favorite_count: meta.favoriteCount ?? request.favoriteCount,
+      danmaku_count: meta.danmakuCount ?? request.danmakuCount,
+      meta_refreshed_at: now,
+    });
+    return updated;
+  }
+
+  toggleAutoplay() {
     this.#autoplayPaused = !this.#autoplayPaused;
     console.log(`[RequestService] autoplay ${this.#autoplayPaused ? "paused" : "resumed"}`);
     if (this.#autoplayPaused) {
@@ -252,21 +373,71 @@ export class RequestService {
         updateStatus(this.#currentPlayingId, "READY");
         this.#currentPlayingId = null;
       }
+      this.#playbackPaused = false;
+      this.#pausedPositionSec = 0;
       emitDockEvent(DOCK_EVENT.REQUESTS);
+      emitInfoOverlay({
+        level: "info",
+        titleKey: "request_autoplay_paused_title",
+        scope: "status",
+      });
       return this.#autoplayPaused;
     }
     this.playNextReady();
     emitDockEvent(DOCK_EVENT.REQUESTS);
+    emitInfoOverlay({
+      level: "info",
+      titleKey: "request_autoplay_resumed_title",
+      scope: "status",
+    });
     return this.#autoplayPaused;
   }
 
-  playNextReady() {
+  pauseOverlay() {
+    if (!this.#currentPlayingId) return null;
+    const request = getById(this.#currentPlayingId);
+    if (!request) return null;
+    const info = this.#buildPlaybackInfo();
+    this.#pausedPositionSec = info?.positionSec ?? 0;
+    this.#playbackPaused = true;
+    updateRequestFields(request.id, { play_started_at: null, play_ended_at: null });
+    this.#overlayHub.pause();
+    emitDockEvent(DOCK_EVENT.REQUESTS);
+    resetPoll();
+    return this.#buildPlaybackInfo();
+  }
+
+  resumeOverlay() {
+    if (!this.#currentPlayingId) return null;
+    const request = getById(this.#currentPlayingId);
+    if (!request) return null;
+    this.#playbackPaused = false;
+    updateRequestFields(request.id, {
+      play_started_at: Date.now() - this.#pausedPositionSec * 1000,
+      play_ended_at: null,
+    });
+    this.#overlayHub.resume();
+    emitDockEvent(DOCK_EVENT.REQUESTS);
+    return this.#buildPlaybackInfo();
+  }
+
+  toggleIntake() {
+    const paused = toggleIntake();
+    emitInfoOverlay({
+      level: "info",
+      title: paused ? "Requests closed" : "Requests reopened",
+      scope: "status",
+    });
+    return paused;
+  }
+
+  async playNextReady() {
     if (this.#currentPlayingId || this.#autoplayPaused) return null;
     const next = fetchNextReadyRequest();
     if (!next) return null;
     console.log(`[RequestService] autoplay candidate -> ${next.id}`);
     try {
-      return this.play(next.id);
+      return await this.play(next.id);
     } catch (err) {
       console.error(`[RequestService] failed to autoplay ${next.id}`, err);
       return null;
@@ -278,6 +449,8 @@ export class RequestService {
     this.#overlayHub.stop(200);
     deleteAllRequests();
     this.#currentPlayingId = null;
+    this.#playbackPaused = false;
+    this.#pausedPositionSec = 0;
   }
 
   #ensureCachedMediaAvailable(request: RequestItem) {
@@ -321,15 +494,21 @@ export class RequestService {
     const request = getById(this.#currentPlayingId);
     if (!request || request.status !== "PLAYING") return null;
     const durationSec = request.durationSec ?? null;
-    const startedAt = request.playStartedAt ?? Date.now();
-    const elapsed = Math.max(0, (Date.now() - startedAt) / 1000);
-    const positionSec = durationSec ? Math.min(durationSec, elapsed) : elapsed;
+    let positionSec: number;
+    if (this.#playbackPaused) {
+      positionSec = this.#pausedPositionSec;
+    } else {
+      const startedAt = request.playStartedAt ?? Date.now();
+      const elapsed = Math.max(0, (Date.now() - startedAt) / 1000);
+      positionSec = durationSec ? Math.min(durationSec, elapsed) : elapsed;
+      this.#pausedPositionSec = positionSec;
+    }
     return {
       id: request.id,
       title: request.title,
       durationSec,
       positionSec,
-      isPlaying: true,
+      isPlaying: !this.#playbackPaused,
     };
   }
 }

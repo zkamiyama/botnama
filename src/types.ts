@@ -58,6 +58,16 @@ export interface RequestItem {
   durationSec: number | null;
   fileName: string | null;
   cacheFilePath: string | null;
+  metaRefreshedAt: number | null;
+  uploadedAt: number | null;
+  viewCount: number | null;
+  likeCount: number | null;
+  dislikeCount: number | null;
+  commentCount: number | null;
+  mylistCount: number | null;
+  favoriteCount: number | null;
+  danmakuCount: number | null;
+  uploader: string | null;
   status: RequestStatus;
   statusReason: string | null;
   queuePosition: number | null;
@@ -86,6 +96,7 @@ export interface ServerSettings {
   ytDlpCookiesFromBrowserProfile: string | null;
   ytDlpCookiesFromBrowserKeyring: string | null;
   ytDlpCookiesFromBrowserContainer: string | null;
+  locale: string;
 }
 
 export interface OverlayPlayMessage {

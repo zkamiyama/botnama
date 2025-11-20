@@ -1,3 +1,5 @@
+import { detectLocale, getLocale, setLocale, t } from "/i18n.js";
+
 const summaryMetricsEl = document.getElementById("summaryMetrics");
 const queueListEl = document.getElementById("queueList");
 const refreshButton = document.getElementById("refreshButton");
@@ -10,8 +12,11 @@ const tabPanels = {
   debug: document.getElementById("tabDebug"),
   comments: document.getElementById("tabComments"),
   system: document.getElementById("tabSystem"),
+  rules: document.getElementById("tabRules"),
 };
 const stopButton = document.getElementById("stopButton");
+const autoButton = document.getElementById("autoButton");
+const intakeButton = document.getElementById("intakeButton");
 const skipButton = document.getElementById("skipButton");
 const commentForm = document.getElementById("commentForm");
 const commentInput = document.getElementById("commentInput");
@@ -27,26 +32,146 @@ const playbackCurrentEl = document.getElementById("playbackCurrent");
 const playbackDurationEl = document.getElementById("playbackDuration");
 const seekBackwardButton = document.getElementById("seekBackwardButton");
 const seekForwardButton = document.getElementById("seekForwardButton");
+const pauseButton = document.getElementById("pauseButton");
+const ruleEnableToggle = document.getElementById("ruleEnableToggle");
+const ruleMaxDurationInput = document.getElementById("ruleMaxDuration");
+const ruleNoDuplicateToggle = document.getElementById("ruleNoDuplicateToggle");
+const ruleCooldownMinutesInput = document.getElementById("ruleCooldownMinutes");
+const ruleCooldownHint = document.getElementById("ruleCooldownHint");
+const rulePollEnableToggle = document.getElementById("rulePollEnableToggle");
+const rulePollIntervalInput = document.getElementById("rulePollInterval");
+const rulePollWindowInput = document.getElementById("rulePollWindow");
+const rulePollStopDelayInput = document.getElementById("rulePollStopDelay");
+const ruleSaveButton = document.getElementById("ruleSaveButton");
+const ruleStatus = document.getElementById("ruleStatus");
+const localeSelect = document.getElementById("localeSelect");
+
+const configureLocale = async () => {
+  const locale = await detectLocale();
+  setLocale(locale);
+  if (localeSelect) localeSelect.value = locale ?? "auto";
+  const tabs = Array.from(tabButtons);
+  if (tabs[0]) tabs[0].textContent = t("tab_list");
+  if (tabs[1]) tabs[1].textContent = t("tab_debug");
+  if (tabs[2]) tabs[2].textContent = t("tab_comments");
+  if (tabs[3]) tabs[3].textContent = t("tab_system");
+  if (tabs[4]) tabs[4].textContent = t("tab_rules");
+  const localeOptions = localeSelect?.querySelectorAll("option");
+  if (localeOptions?.[0]) localeOptions[0].textContent = t("locale_auto");
+  if (localeOptions?.[1]) localeOptions[1].textContent = t("locale_ja");
+  if (localeOptions?.[2]) localeOptions[2].textContent = t("locale_en");
+  if (ruleEnableToggle?.parentElement) {
+    const parent = ruleEnableToggle.parentElement;
+    parent.innerHTML = "";
+    parent.appendChild(ruleEnableToggle);
+    const label = document.createElement("span");
+    label.textContent = t("rule_enable");
+    parent.appendChild(label);
+  }
+  if (rulePollEnableToggle?.parentElement) {
+    const parent = rulePollEnableToggle.parentElement;
+    parent.innerHTML = "";
+    parent.appendChild(rulePollEnableToggle);
+    const label = document.createElement("span");
+    label.textContent = t("rule_poll_enable");
+    parent.appendChild(label);
+  }
+  const maxLabel = document.querySelector("label[for='ruleMaxDuration']");
+  if (maxLabel) maxLabel.textContent = t("rule_max");
+  const pollIntervalLabel = document.querySelector("label[for='rulePollInterval']");
+  if (pollIntervalLabel) pollIntervalLabel.textContent = t("rule_poll_interval");
+  const pollWindowLabel = document.querySelector("label[for='rulePollWindow']");
+  if (pollWindowLabel) pollWindowLabel.textContent = t("rule_poll_window");
+  const pollStopDelayLabel = document.querySelector("label[for='rulePollStopDelay']");
+  if (pollStopDelayLabel) pollStopDelayLabel.textContent = t("rule_poll_stop_delay");
+  if (ruleNoDuplicateToggle?.parentElement) {
+    const parent = ruleNoDuplicateToggle.parentElement;
+    parent.innerHTML = "";
+    parent.appendChild(ruleNoDuplicateToggle);
+    const label = document.createElement("span");
+    label.textContent = t("rule_no_duplicate");
+    parent.appendChild(label);
+  }
+  const cooldownLabel = document.querySelector("label[for='ruleCooldownMinutes']");
+  if (cooldownLabel) cooldownLabel.textContent = t("rule_cooldown");
+  if (ruleCooldownHint) ruleCooldownHint.textContent = t("rule_cooldown_hint");
+  if (ruleSaveButton) ruleSaveButton.textContent = t("rule_save");
+  const headerRow = document.querySelector(".comment-table-header");
+  if (headerRow) {
+    const spans = headerRow.querySelectorAll("span");
+    if (spans[0]) spans[0].textContent = t("comments_header_time");
+    if (spans[1]) spans[1].textContent = t("comments_header_user");
+    if (spans[2]) spans[2].textContent = t("comments_header_body");
+  }
+  const inUse = document.getElementById("ytDlpInUseLabel");
+  if (inUse) inUse.textContent = t("system_in_use");
+  const latest = document.getElementById("ytDlpLatestLabel");
+  if (latest) latest.textContent = t("system_latest");
+  const ejs = document.getElementById("ytDlpEjsLabel");
+  if (ejs) ejs.textContent = t("system_ejs");
+  // buttons
+  stopButton?.setAttribute("title", t("btn_stop"));
+  autoButton?.setAttribute("title", t("btn_auto"));
+  intakeButton?.setAttribute("title", t("btn_intake"));
+  skipButton?.setAttribute("title", t("btn_skip"));
+  refreshButton?.setAttribute("title", t("btn_refresh"));
+  if (stopButtonIcon) stopButtonIcon.alt = t("btn_stop");
+  if (autoButtonIcon) autoButtonIcon.alt = t("btn_auto");
+  if (intakeButtonIcon) intakeButtonIcon.alt = t("btn_intake");
+  if (skipButton?.firstElementChild instanceof HTMLImageElement) {
+    skipButton.firstElementChild.alt = t("btn_skip");
+  }
+  clearButton.textContent = t("btn_clear");
+  seekBackwardButton.textContent = t("seek_back");
+  seekForwardButton.textContent = t("seek_forward");
+  if (updateYtDlpButton) updateYtDlpButton.textContent = t("system_update_btn");
+  if (refreshYtDlpEjsButton) refreshYtDlpEjsButton.textContent = t("system_refresh_ejs_btn");
+  if (commentFormLabel) commentFormLabel.textContent = t("comment_label");
+  if (commentInput) commentInput.placeholder = t("comment_placeholder");
+  if (userNameLabel) userNameLabel.textContent = t("user_label");
+  if (userNameInput) userNameInput.placeholder = t("user_placeholder");
+  if (commentSubmitButton) commentSubmitButton.textContent = t("comment_submit");
+  const suspendButton = contextMenu.querySelector("[data-action='suspend']");
+  const resumeButton = contextMenu.querySelector("[data-action='resume']");
+  if (suspendButton) suspendButton.textContent = t("ctx_suspend");
+  if (resumeButton) resumeButton.textContent = t("ctx_resume");
+  const copyLinkBtn = itemMenu.querySelector("[data-action='copy-link']");
+  const copyTitleBtn = itemMenu.querySelector("[data-action='copy-title']");
+  if (copyLinkBtn) copyLinkBtn.textContent = t("copy_link");
+  if (copyTitleBtn) copyTitleBtn.textContent = t("copy_title");
+};
 
 let currentPlayingId = null;
 let queueItemsSnapshot = [];
 let lastSelectedId = null;
 const selectedRequestIds = new Set();
 const stopButtonIcon = stopButton.querySelector("img");
+const autoButtonIcon = autoButton?.querySelector("img");
+const intakeButtonIcon = intakeButton?.querySelector("img");
 let playbackState = null;
 let playbackAnimationId = null;
 let playbackLastUpdate = 0;
 let isUserSeeking = false;
 
-const updateStopButtonState = (paused) => {
-  stopButton.classList.toggle("paused", paused);
-  stopButton.setAttribute("aria-pressed", paused ? "true" : "false");
-  stopButton.title = paused
-    ? "自動再生: 停止中（クリックで再開）"
-    : "自動再生: 稼働中（クリックで停止）";
-  if (stopButtonIcon) {
-    stopButtonIcon.src = paused ? "/icons/play_arrow.svg" : "/icons/stop.svg";
-    stopButtonIcon.alt = paused ? "再開" : "停止";
+const updateAutoplayButtonState = (paused) => {
+  if (!autoButton) return;
+  autoButton.classList.toggle("paused", paused);
+  autoButton.setAttribute("aria-pressed", paused ? "true" : "false");
+  autoButton.title = t("btn_auto");
+  if (autoButtonIcon) {
+    autoButtonIcon.src = paused ? "/icons/play_arrow.svg" : "/icons/auto_mode.svg";
+    autoButtonIcon.alt = t("btn_auto");
+  }
+};
+
+const updateIntakeButtonState = (paused) => {
+  if (!intakeButton) return;
+  intakeButton.classList.toggle("paused", paused);
+  intakeButton.setAttribute("aria-pressed", paused ? "true" : "false");
+  intakeButton.title = t("btn_intake");
+  if (intakeButtonIcon) {
+    intakeButtonIcon.src = paused ? "/icons/block.svg" : "/icons/block.svg";
+    intakeButtonIcon.alt = t("btn_intake");
   }
 };
 
@@ -54,10 +179,20 @@ const contextMenu = document.createElement("div");
 contextMenu.id = "queueContextMenu";
 contextMenu.className = "context-menu hidden";
 contextMenu.innerHTML = `
-  <button type="button" data-action="suspend">選択を保留にする</button>
-  <button type="button" data-action="resume">選択の保留を解除</button>
+  <button type="button" data-action="suspend">${t("ctx_suspend")}</button>
+  <button type="button" data-action="resume">${t("ctx_resume")}</button>
 `;
 document.body.appendChild(contextMenu);
+
+const itemMenu = document.createElement("div");
+itemMenu.id = "itemContextMenu";
+itemMenu.className = "context-menu hidden";
+itemMenu.innerHTML = `
+  <button type="button" data-action="copy-link">${t("copy_link") ?? "Copy link"}</button>
+  <button type="button" data-action="copy-title">${t("copy_title") ?? "Copy title"}</button>
+`;
+document.body.appendChild(itemMenu);
+let itemMenuTarget = null;
 
 contextMenu.addEventListener("click", (event) => {
   const button = event.target;
@@ -73,6 +208,10 @@ contextMenu.addEventListener("click", (event) => {
 
 const hideContextMenu = () => {
   contextMenu.classList.add("hidden");
+};
+const hideItemMenu = () => {
+  itemMenu.classList.add("hidden");
+  itemMenuTarget = null;
 };
 
 const updateContextMenuButtons = () => {
@@ -103,16 +242,35 @@ const openContextMenu = (x, y) => {
   contextMenu.classList.remove("hidden");
 };
 
+const openItemMenu = (x, y, item) => {
+  hideContextMenu();
+  if (!item) return;
+  itemMenuTarget = item;
+  itemMenu.style.left = `${x}px`;
+  itemMenu.style.top = `${y}px`;
+  itemMenu.classList.remove("hidden");
+};
+
 document.addEventListener("click", (event) => {
   if (!contextMenu.contains(event.target)) {
     hideContextMenu();
   }
+  if (!itemMenu.contains(event.target)) {
+    hideItemMenu();
+  }
 });
-document.addEventListener("scroll", () => hideContextMenu(), true);
+document.addEventListener("scroll", () => {
+  hideContextMenu();
+  hideItemMenu();
+}, true);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideContextMenu();
+  if (event.key === "Escape") hideItemMenu();
 });
-globalThis.addEventListener("resize", hideContextMenu);
+globalThis.addEventListener("resize", () => {
+  hideContextMenu();
+  hideItemMenu();
+});
 
 const disablePlaybackControls = () => {
   if (!playbackControlsEl) return;
@@ -126,6 +284,7 @@ const disablePlaybackControls = () => {
   if (playbackDurationEl) playbackDurationEl.textContent = "--:--";
   seekBackwardButton?.setAttribute("disabled", "true");
   seekForwardButton?.setAttribute("disabled", "true");
+  pauseButton?.setAttribute("disabled", "true");
 };
 
 disablePlaybackControls();
@@ -155,6 +314,12 @@ const applyPlaybackState = (state) => {
   updatePlaybackSeekDisplay(state.positionSec);
   seekBackwardButton?.removeAttribute("disabled");
   seekForwardButton?.removeAttribute("disabled");
+  pauseButton?.removeAttribute("disabled");
+  pauseButton?.classList.toggle("paused", !state.isPlaying);
+  if (pauseButton?.firstElementChild instanceof HTMLImageElement) {
+    pauseButton.firstElementChild.src = state.isPlaying ? "/icons/pause.svg" : "/icons/play_arrow.svg";
+    pauseButton.firstElementChild.alt = state.isPlaying ? t("btn_pause") : t("btn_resume");
+  }
   if (state.isPlaying) {
     startPlaybackAnimation();
   } else {
@@ -197,7 +362,7 @@ const sendSeekRequest = async (payload) => {
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    formStatus.textContent = `シークに失敗: ${err.message}`;
+    formStatus.textContent = t("msg_seek_fail", err.message);
   }
 };
 
@@ -224,17 +389,34 @@ if (playbackSeekEl) {
 
 seekBackwardButton?.addEventListener("click", () => sendSeekRequest({ deltaSec: -10 }));
 seekForwardButton?.addEventListener("click", () => sendSeekRequest({ deltaSec: 10 }));
+pauseButton?.addEventListener("click", async () => {
+  if (!playbackState) return;
+  pauseButton.disabled = true;
+  try {
+    const endpoint = playbackState.isPlaying ? "/api/overlay/pause" : "/api/overlay/resume";
+    const result = await fetchJSON(endpoint, { method: "POST" });
+    if (result?.state) {
+      applyPlaybackState({
+        ...playbackState,
+        positionSec: result.state.positionSec ?? playbackState.positionSec,
+        durationSec: result.state.durationSec ?? playbackState.durationSec,
+        isPlaying: Boolean(result.state.isPlaying),
+      });
+    } else {
+      playbackState.isPlaying = !playbackState.isPlaying;
+      applyPlaybackState(playbackState);
+    }
+  } catch (err) {
+    formStatus.textContent = t("msg_pause_fail", err.message);
+  } finally {
+    pauseButton.disabled = false;
+    refreshAll();
+  }
+});
 
-const STATUS_LABEL = {
-  QUEUED: "待機中",
-  DOWNLOADING: "DL中",
-  READY: "準備完了",
-  PLAYING: "再生中",
-  DONE: "再生済",
-  FAILED: "エラー",
-  REJECTED: "拒否",
-  VALIDATING: "検証中",
-  SUSPEND: "保留",
+const statusLabel = (status) => {
+  const key = `status_label_${status.toLowerCase()}`;
+  return t(key);
 };
 
 const PLAYABLE_STATUSES = new Set(["READY", "DONE"]);
@@ -275,28 +457,31 @@ const fetchJSON = async (url, options = {}) => {
 
 const renderSummary = (data) => {
   const duration = formatDuration(data.totalDurationSecPending || 0);
+  const items = data.totalPendingItems ?? 0;
   summaryMetricsEl.innerHTML = `
     <div class="metric">
-      <span>残り時間</span>
-      <span>${duration}</span>
-      <span>${data.totalPendingItems ?? 0}件</span>
+      <span class="metric-label">${t("summary_items")}</span>
+      <span class="metric-value">${t("pending_items", items)}</span>
+      <span class="metric-count">(${duration})</span>
     </div>
   `;
-  queueCounterEl.textContent = `リスト ${data.totalItems ?? 0}件`;
+  queueCounterEl.textContent = t("queue_count", data.totalItems ?? 0);
   statusAreaEl.innerHTML = `
     <span class="status-dot ${data.overlayConnected ? "online" : "offline"}"></span>
-    <span>${data.overlayConnected ? "Overlay接続中" : "Overlay未接続"}</span>
-    <span class="status-text-inline">DL中: ${data.downloadingCount ?? 0}</span>
-    <span class="status-text-inline">自動再生: ${data.autoplayPaused ? "停止中" : "稼働中"}</span>
+    <span>${data.overlayConnected ? t("status_overlay_connected") : t("status_overlay_disconnected")}</span>
+    <span class="status-text-inline">${t("status_downloading", data.downloadingCount ?? 0)}</span>
+    <span class="status-text-inline">${t("status_autoplay", !data.autoplayPaused)}</span>
+    <span class="status-text-inline">${t("status_intake", !data.intakePaused)}</span>
   `;
-  updateStopButtonState(Boolean(data.autoplayPaused));
+  updateAutoplayButtonState(Boolean(data.autoplayPaused));
+  updateIntakeButtonState(Boolean(data.intakePaused));
   applyPlaybackState(data.currentPlayback ?? null);
 };
 
 const renderEmptyState = () => {
   const empty = document.createElement("div");
   empty.className = "queue-card";
-  empty.textContent = "キューは空です";
+  empty.textContent = t("queue_empty");
   queueListEl.appendChild(empty);
 };
 
@@ -305,7 +490,7 @@ const createStatusChip = (item) => {
   chip.className = `status-chip ${item.status.toLowerCase()}`;
   const label = document.createElement("span");
   label.className = "status-label";
-  label.textContent = STATUS_LABEL[item.status] ?? item.status;
+  label.textContent = statusLabel(item.status) ?? item.status;
   chip.appendChild(label);
 
   return chip;
@@ -402,10 +587,9 @@ const createActionButton = (
     } catch (err) {
       console.error(err);
       if (formStatus) {
-        const actionLabel = label ?? "操作";
-        formStatus.textContent = `${actionLabel}に失敗しました: ${
-          err instanceof Error ? err.message : String(err)
-        }`;
+        const actionLabel = label ?? "";
+        const msg = err instanceof Error ? err.message : String(err);
+        formStatus.textContent = t("msg_action_fail", { label: actionLabel, msg });
       }
     }
   });
@@ -491,22 +675,22 @@ const renderQueue = (items) => {
     if (item.status === "SUSPEND") {
       row.classList.add("suspend");
       if (item.statusReason) {
-        const label = STATUS_LABEL[item.statusReason] ?? item.statusReason;
-        row.title = `保留中 (元: ${label})`;
+        const label = statusLabel(item.statusReason) || item.statusReason;
+        row.title = t("tooltip_suspend_origin", { reason: label });
       } else {
-        row.title = "保留中";
+        row.title = t("tooltip_suspend_plain");
       }
     } else if (item.statusReason) {
       row.title = item.statusReason;
     }
 
-    const playButton = createActionButton("再生", async () => {
+    const playButton = createActionButton(t("action_play"), async () => {
       await fetchJSON(`/api/requests/${item.id}/play`, { method: "POST" });
       refreshAll();
     }, { disabled: !PLAYABLE_STATUSES.has(item.status), icon: "/icons/play_arrow.svg" });
 
-    const deleteButton = createActionButton("削除", async () => {
-      if (!confirm("このリクエストを削除しますか？")) return;
+    const deleteButton = createActionButton(t("action_delete"), async () => {
+      if (!confirm(t("confirm_delete"))) return;
       await fetchJSON(`/api/requests/${item.id}/delete`, { method: "POST" });
       refreshAll();
     }, {
@@ -518,12 +702,11 @@ const renderQueue = (items) => {
     const statusCell = createStatusChip(item);
     const priorityCell = createPriorityCell(item);
     const durationCell = createDurationCell(item);
-    const titleLink = document.createElement("a");
-    titleLink.className = "queue-title-link";
-    titleLink.href = item.url;
-    titleLink.target = "_blank";
-    titleLink.rel = "noreferrer";
-    titleLink.textContent = item.title ?? "タイトル取得中";
+    const titleLink = document.createElement("span");
+    titleLink.className = "queue-title-link unselectable";
+    titleLink.textContent = item.title ?? t("queue_title_loading");
+    titleLink.dataset.url = item.url;
+    titleLink.title = item.url;
 
     row.appendChild(playButton);
     row.appendChild(statusCell);
@@ -538,6 +721,7 @@ const renderQueue = (items) => {
   updateRowSelectionStyles();
   animateRowTransitions(previousRects);
   const hasPlaying = Boolean(currentPlayingId);
+  stopButton.disabled = !hasPlaying;
   skipButton.disabled = !hasPlaying;
 };
 
@@ -592,12 +776,17 @@ const handleRowContextMenu = (event, requestId) => {
     lastSelectedId = requestId;
   }
   updateRowSelectionStyles();
-  openContextMenu(event.pageX, event.pageY);
+  const item = queueItemsSnapshot.find((req) => req.id === requestId) ?? null;
+  if (selectedRequestIds.size === 1 && item) {
+    openItemMenu(event.pageX, event.pageY, item);
+  } else {
+    openContextMenu(event.pageX, event.pageY);
+  }
 };
 
 const applySelectionAction = async (action) => {
   if (selectedRequestIds.size === 0) {
-    formStatus.textContent = "対象を選択してください";
+    formStatus.textContent = t("msg_selection_none");
     return;
   }
   const ids = Array.from(selectedRequestIds);
@@ -608,21 +797,24 @@ const applySelectionAction = async (action) => {
       body: JSON.stringify({ ids }),
     });
     formStatus.textContent = action === "suspend"
-      ? `${ids.length}件を保留にしました`
-      : `${ids.length}件の保留を解除しました`;
+      ? t("msg_suspend_done", ids.length)
+      : t("msg_resume_done", ids.length);
     selectedRequestIds.clear();
     lastSelectedId = null;
     updateRowSelectionStyles();
     refreshAll();
   } catch (err) {
-    formStatus.textContent = `操作に失敗しました: ${err.message}`;
+    formStatus.textContent = t("msg_action_fail", {
+      label: action === "suspend" ? t("ctx_suspend") : t("ctx_resume"),
+      msg: err.message,
+    });
   }
 };
 
 const refreshAll = async () => {
   refreshButton.disabled = true;
   try {
-    const [summary, list, comments, versionInfo] = await Promise.all([
+    const [summary, list, comments, versionInfo, rules] = await Promise.all([
       fetchJSON("/api/requests/summary"),
       fetchJSON(
         `/api/requests?status=${
@@ -633,14 +825,16 @@ const refreshAll = async () => {
       ),
       fetchJSON("/api/comments?limit=30"),
       fetchJSON("/api/system/info"),
+      fetchJSON("/api/rules"),
     ]);
     renderSummary(summary);
     renderQueue(list.items ?? []);
     renderComments(comments.items ?? []);
     renderSystem(versionInfo);
+    renderRules(rules?.rules);
   } catch (err) {
     console.error(err);
-    formStatus.textContent = `更新に失敗しました: ${err.message}`;
+    formStatus.textContent = t("msg_update_fail", err.message);
   } finally {
     refreshButton.disabled = false;
   }
@@ -669,7 +863,7 @@ const handleOrderChange = async (requestId, input) => {
     input.dataset.currentOrder = String(desired);
   } catch (err) {
     console.error(err);
-    formStatus.textContent = `順番変更に失敗: ${err.message}`;
+    formStatus.textContent = t("msg_reorder_fail", err.message);
     input.value = currentLabel || "";
   } finally {
     input.disabled = false;
@@ -680,14 +874,14 @@ const parseSseData = (event) => {
   try {
     return JSON.parse(event.data);
   } catch (err) {
-    console.error("ライブ更新データの解析に失敗しました", err);
+    console.error(t("msg_parse_fail"), err);
     return null;
   }
 };
 
 const connectDockStream = () => {
   if (!("EventSource" in window)) {
-    console.warn("EventSource が未対応のため、ポーリングにフォールバックします");
+    console.warn(t("msg_eventsource_fallback"));
     setInterval(refreshAll, 6000);
     return;
   }
@@ -715,7 +909,7 @@ const connectDockStream = () => {
       retryDelay = 2000;
     };
     source.onerror = () => {
-      console.warn("ライブ更新ストリームから切断されました。再接続します...");
+      console.warn(t("msg_stream_retry"));
       source.close();
       setTimeout(connect, retryDelay);
       retryDelay = Math.min(retryDelay * 2, maxDelay);
@@ -727,12 +921,61 @@ const connectDockStream = () => {
 stopButton.addEventListener("click", async () => {
   stopButton.disabled = true;
   try {
-    const result = await fetchJSON("/api/overlay/stop", { method: "POST" });
-    updateStopButtonState(Boolean(result?.paused));
+    await fetchJSON("/api/overlay/stop", { method: "POST" });
   } catch (err) {
-    formStatus.textContent = `停止に失敗: ${err.message}`;
+    formStatus.textContent = t("msg_stop_fail", err.message);
   } finally {
     stopButton.disabled = false;
+    refreshAll();
+  }
+});
+
+itemMenu.addEventListener("click", async (event) => {
+  const button = event.target;
+  if (!(button instanceof HTMLButtonElement)) return;
+  const action = button.dataset.action;
+  hideItemMenu();
+  if (!itemMenuTarget) return;
+  const { url, title } = itemMenuTarget;
+  if (!navigator.clipboard) {
+    formStatus.textContent = t("msg_send_fail", "clipboard unsupported");
+    return;
+  }
+  try {
+    if (action === "copy-link") {
+      await navigator.clipboard.writeText(url || "");
+      formStatus.textContent = t("copied_link");
+    } else if (action === "copy-title") {
+      await navigator.clipboard.writeText(title ?? url ?? "");
+      formStatus.textContent = t("copied_title");
+    }
+  } catch (err) {
+    formStatus.textContent = t("msg_send_fail", err.message);
+  }
+});
+
+autoButton?.addEventListener("click", async () => {
+  autoButton.disabled = true;
+  try {
+    const result = await fetchJSON("/api/overlay/autoplay", { method: "POST" });
+    updateAutoplayButtonState(Boolean(result?.paused));
+  } catch (err) {
+    formStatus.textContent = t("msg_auto_fail", err.message);
+  } finally {
+    autoButton.disabled = false;
+    refreshAll();
+  }
+});
+
+intakeButton?.addEventListener("click", async () => {
+  intakeButton.disabled = true;
+  try {
+    const result = await fetchJSON("/api/requests/intake/toggle", { method: "POST" });
+    updateIntakeButtonState(Boolean(result?.paused));
+  } catch (err) {
+    formStatus.textContent = t("msg_intake_fail", err.message);
+  } finally {
+    intakeButton.disabled = false;
     refreshAll();
   }
 });
@@ -743,7 +986,7 @@ skipButton.addEventListener("click", async () => {
   try {
     await fetchJSON(`/api/requests/${currentPlayingId}/skip`, { method: "POST" });
   } catch (err) {
-    formStatus.textContent = `スキップに失敗: ${err.message}`;
+    formStatus.textContent = t("msg_skip_fail", err.message);
   } finally {
     refreshAll();
   }
@@ -752,12 +995,12 @@ skipButton.addEventListener("click", async () => {
 refreshButton.addEventListener("click", refreshAll);
 
 clearButton.addEventListener("click", async () => {
-  if (!confirm("再生リストをすべて削除しますか？")) return;
+  if (!confirm(t("confirm_delete_all"))) return;
   clearButton.disabled = true;
   try {
     await fetchJSON("/api/requests/clear", { method: "POST" });
   } catch (err) {
-    formStatus.textContent = `全削除に失敗: ${err.message}`;
+    formStatus.textContent = t("msg_clear_fail", err.message);
   } finally {
     refreshAll();
   }
@@ -782,7 +1025,7 @@ commentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = commentInput.value.trim();
   if (!message) {
-    formStatus.textContent = "コメントを入力してください";
+    formStatus.textContent = t("msg_comment_required");
     return;
   }
   try {
@@ -794,32 +1037,61 @@ commentForm.addEventListener("submit", async (event) => {
     formStatus.textContent = result.warning
       ? result.warning
       : result.request
-      ? `登録しました: ${result.request.id}`
-      : "コメントを保存しました";
+      ? t("msg_request_registered", result.request.id)
+      : t("msg_comment_saved");
     commentInput.value = "";
     refreshAll();
   } catch (err) {
-    formStatus.textContent = `送信失敗: ${err.message}`;
+    formStatus.textContent = t("msg_send_fail", err.message);
   }
 });
 
-refreshAll();
-connectDockStream();
+const init = async () => {
+  await configureLocale();
+  await refreshAll();
+  connectDockStream();
+  localeSelect?.addEventListener("change", async () => {
+    const value = localeSelect.value;
+    if (value && value !== "auto") {
+      setLocale(value);
+    } else {
+      const nav = navigator.language || navigator.userLanguage || "en";
+      setLocale(nav);
+    }
+    try {
+      await fetch("/locale", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ locale: value }),
+      });
+    } catch (_) {
+      // ignore server failure; client still switches
+    }
+    await configureLocale();
+    await refreshAll();
+  });
+};
+
+init();
 
 const renderComments = (items) => {
   commentTableBody.innerHTML = "";
   if (!items.length) {
     const empty = document.createElement("div");
     empty.className = "comment-row empty";
-    empty.textContent = "コメントはありません";
+    empty.textContent = t("comments_empty");
     commentTableBody.appendChild(empty);
     return;
   }
   for (const item of items) {
     const row = document.createElement("div");
     row.className = "comment-row";
-    const timestamp = new Date(item.timestamp).toLocaleTimeString("ja-JP", { hour12: false });
-    const displayUser = item.userId ?? item.userName ?? "匿名";
+    const locale = getLocale();
+    const timestamp = new Date(item.timestamp).toLocaleTimeString(
+      locale === "ja" ? "ja-JP" : "en-US",
+      { hour12: false },
+    );
+    const displayUser = item.userId ?? item.userName ?? t("anonymous_user");
     const columns = [timestamp, displayUser, item.message];
     columns.forEach((text, index) => {
       const span = document.createElement("span");
@@ -844,16 +1116,67 @@ const renderSystem = (info) => {
   refreshYtDlpEjsButton.disabled = false;
 };
 
+const renderRules = (rules) => {
+  if (!rules) return;
+  if (ruleEnableToggle) ruleEnableToggle.checked = Boolean(rules.maxDurationEnabled);
+  if (ruleMaxDurationInput && typeof rules.maxDurationMinutes === "number") {
+    ruleMaxDurationInput.value = String(rules.maxDurationMinutes);
+  }
+  if (ruleNoDuplicateToggle && typeof rules.disallowDuplicates === "boolean") {
+    ruleNoDuplicateToggle.checked = rules.disallowDuplicates;
+  }
+  if (ruleCooldownMinutesInput && typeof rules.cooldownMinutes === "number") {
+    ruleCooldownMinutesInput.value = String(rules.cooldownMinutes);
+  }
+  if (rulePollEnableToggle) rulePollEnableToggle.checked = Boolean(rules.pollEnabled);
+  if (rulePollIntervalInput && typeof rules.pollIntervalSec === "number") {
+    rulePollIntervalInput.value = String(rules.pollIntervalSec);
+  }
+  if (rulePollWindowInput && typeof rules.pollWindowSec === "number") {
+    rulePollWindowInput.value = String(rules.pollWindowSec);
+  }
+  if (rulePollStopDelayInput && typeof rules.pollStopDelaySec === "number") {
+    rulePollStopDelayInput.value = String(rules.pollStopDelaySec);
+  }
+};
+
+ruleSaveButton?.addEventListener("click", async () => {
+  ruleSaveButton.disabled = true;
+  ruleStatus.textContent = "";
+  try {
+    const payload = {
+      enabled: ruleEnableToggle?.checked ?? true,
+      maxDurationMinutes: Number(ruleMaxDurationInput?.value ?? 0),
+      disallowDuplicates: ruleNoDuplicateToggle?.checked ?? true,
+      cooldownMinutes: Number(ruleCooldownMinutesInput?.value ?? 0),
+      pollEnabled: rulePollEnableToggle?.checked ?? false,
+      pollIntervalSec: Number(rulePollIntervalInput?.value ?? 90),
+      pollWindowSec: Number(rulePollWindowInput?.value ?? 20),
+      pollStopDelaySec: Number(rulePollStopDelayInput?.value ?? 10),
+    };
+    const result = await fetchJSON("/api/rules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    renderRules(result?.rules);
+    ruleStatus.textContent = t("rule_saved");
+  } catch (err) {
+    ruleStatus.textContent = `${t("rule_save_failed")}: ${err.message}`;
+  } finally {
+    ruleSaveButton.disabled = false;
+  }
+});
+
 updateYtDlpButton.addEventListener("click", async () => {
   updateYtDlpButton.disabled = true;
-  systemMessageEl.textContent = "yt-dlp を更新中...";
+  systemMessageEl.textContent = t("system_update_btn");
   try {
     const result = await fetchJSON("/api/system/update/yt-dlp", { method: "POST" });
     systemMessageEl.textContent = result.ok
-      ? `yt-dlp を ${result.version ?? ""} に更新しました`
-      : result.message ?? "更新に失敗しました";
+      ? `${t("system_in_use")} ${result.version ?? ""}`
+      : result.message ?? t("msg_update_fail", "");
   } catch (err) {
-    systemMessageEl.textContent = `更新失敗: ${err.message}`;
+    systemMessageEl.textContent = t("msg_update_fail", err.message);
   } finally {
     refreshAll();
   }
@@ -861,14 +1184,14 @@ updateYtDlpButton.addEventListener("click", async () => {
 
 refreshYtDlpEjsButton.addEventListener("click", async () => {
   refreshYtDlpEjsButton.disabled = true;
-  systemMessageEl.textContent = "yt-dlp-ejs を更新中...";
+  systemMessageEl.textContent = t("system_refresh_ejs_btn");
   try {
     const result = await fetchJSON("/api/system/update/yt-dlp-ejs", { method: "POST" });
     systemMessageEl.textContent = result.ok
-      ? "yt-dlp-ejs を更新しました"
-      : result.message ?? "更新に失敗しました";
+      ? `${t("system_ejs")} updated`
+      : result.message ?? t("msg_update_fail", "");
   } catch (err) {
-    systemMessageEl.textContent = `更新失敗: ${err.message}`;
+    systemMessageEl.textContent = t("msg_update_fail", err.message);
   } finally {
     refreshAll();
     refreshYtDlpEjsButton.disabled = false;

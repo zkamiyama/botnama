@@ -45,6 +45,7 @@ let videoFinished = false;
 
 let fadeTimer = null;
 let audioLoopPromise = null;
+let stopToken = 0;
 
 const resizeCanvas = () => {
   const dpr = window.devicePixelRatio || 1;
@@ -115,6 +116,8 @@ const handleMessage = async (message) => {
 };
 
 const playMedia = async ({ url, requestId, volume = 1, loop = false }) => {
+  ++stopToken;
+  cancelPendingFade();
   try {
     await disposePlayback();
     clearStatus();
@@ -136,6 +139,13 @@ const playMedia = async ({ url, requestId, volume = 1, loop = false }) => {
   } catch (err) {
     console.error("[Overlay] failed to start playback", err);
     failWithError(err);
+  }
+};
+
+const cancelPendingFade = () => {
+  if (fadeTimer) {
+    clearTimeout(fadeTimer);
+    fadeTimer = null;
   }
 };
 
@@ -446,28 +456,33 @@ const seekPlayback = async (positionSec) => {
 };
 
 const stopPlayback = async (fadeMs) => {
-  if (fadeTimer) {
-    clearTimeout(fadeTimer);
-    fadeTimer = null;
-  }
+  const token = ++stopToken;
+  cancelPendingFade();
   if (fadeMs && gainNode && audioContext) {
     const now = audioContext.currentTime;
     gainNode.gain.cancelScheduledValues(now);
     gainNode.gain.setValueAtTime(gainNode.gain.value, now);
     gainNode.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
     fadeTimer = setTimeout(async () => {
+      if (token !== stopToken) {
+        fadeTimer = null;
+        return;
+      }
       fadeTimer = null;
       await disposePlayback();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      currentRequestId = null;
-      clearStatus();
+      finalizeStop(token);
     }, fadeMs);
   } else {
     await disposePlayback();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    currentRequestId = null;
-    clearStatus();
+    finalizeStop(token);
   }
+};
+
+const finalizeStop = (token) => {
+  if (token !== stopToken) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  currentRequestId = null;
+  clearStatus();
 };
 
 const disposePlayback = async () => {
@@ -558,6 +573,8 @@ const sendError = (reason) => {
 };
 
 const failWithError = (err) => {
+  ++stopToken;
+  cancelPendingFade();
   setStatus(err?.message ?? "Playback failed", "error");
   sendError(err?.message ?? "playback failed");
   currentRequestId = null;
