@@ -17,7 +17,7 @@ import { fetchVideoMetadata } from "./metadataService.ts";
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_BASE_LENGTH = 240;
 
-type ManifestEntryKind = "container" | "video" | "audio";
+type ManifestEntryKind = "container" | "video" | "audio" | "thumbnail";
 
 interface MediaManifestEntry {
   kind: ManifestEntryKind;
@@ -30,6 +30,7 @@ interface MediaManifest {
   requestId: string;
   sourceUrl: string;
   createdAt: number;
+  thumbnail?: string | null; // file name of downloaded thumbnail if any
   entries: MediaManifestEntry[];
 }
 
@@ -51,6 +52,7 @@ interface YtDlpMetadata {
   mylistCount: number | null;
   favoriteCount: number | null;
   danmakuCount: number | null;
+  thumbnail: string | null;
 }
 
 interface CacheTargets {
@@ -181,6 +183,7 @@ export class DownloadWorker {
       favoriteCount: metadata.favoriteCount,
       danmakuCount: metadata.danmakuCount,
       metaRefreshedAt: fetchedAt,
+      thumbnailUrl: metadata.thumbnail ?? null,
     });
 
     if (await this.#fileExists(targets.absolutePath)) {
@@ -215,15 +218,65 @@ export class DownloadWorker {
   async #downloadVideo(request: RequestItem, settings: ServerSettings, targets: CacheTargets) {
     ensureDirSync(settings.cacheDir);
     const outputTemplate = join(settings.cacheDir, `${targets.baseName}.%(ext)s`);
-    const args = ["-o", outputTemplate, ...this.#buildCookieArgs(settings), request.url];
-    const command = new Deno.Command(settings.ytDlpPath, {
-      args,
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const result = await command.output();
-    if (result.code !== 0) {
-      throw new Error(new TextDecoder().decode(result.stderr) || "yt-dlp exited with error");
+    // instruct yt-dlp to write info json and thumbnail (if available)
+    // default to --no-playlist so passing a watch URL with a `list=` parameter
+    // does not trigger downloading the entire playlist (can be very large)
+    // Sanitize request URL to avoid accidental playlist expansion from watch URLs
+    // e.g. https://www.youtube.com/watch?v=ID&list=...&start_radio=1
+    // We keep the original request.url in manifest/database but pass a cleaned
+    // URL to yt-dlp so it doesn't auto-follow the playlist context.
+    // Prefer the parsed normalized URL (clean canonical form) if available
+    const baseForSanitize = request.parsed?.normalizedUrl ?? request.url;
+    const sanitizedUrl = (() => {
+      try {
+        const u = new URL(baseForSanitize);
+        const params = u.searchParams;
+        // remove usual playlist-like params that cause yt-dlp to process a playlist
+        params.delete("list");
+        params.delete("start_radio");
+        params.delete("pp");
+        // write back cleaned params
+        u.search = params.toString();
+        return u.toString();
+      } catch (_err) {
+        return baseForSanitize;
+      }
+    })();
+
+    const args = [
+      "-o",
+      outputTemplate,
+      "--no-playlist",
+      "--write-info-json",
+      "--write-thumbnail",
+      ...this.#buildCookieArgs(settings),
+      sanitizedUrl,
+    ];
+    // Diagnostic: log how we call yt-dlp so we can inspect if --no-playlist
+    // or sanitized URL are actually used at runtime.
+    console.log(`[worker] invoking yt-dlp ${settings.ytDlpPath} ${args.join(" ")}`);
+
+    // Run and stream output to logs so long-running downloads are visible
+    // in server logs (prevents silent blocking on huge playlists).
+    const proc = new Deno.Command(settings.ytDlpPath, { args, stdout: "piped", stderr: "piped" }).spawn();
+    const stdout = proc.stdout?.readable?.getReader();
+    const stderr = proc.stderr?.readable?.getReader();
+    const readStream = async (reader: ReadableStreamDefaultReader<Uint8Array> | undefined, tag: string) => {
+      if (!reader) return;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value && value.length > 0) console.log(`[yt-dlp:${tag}] ${new TextDecoder().decode(value)}`.trim());
+        }
+      } catch (_err) {
+        // ignore read errors
+      }
+    };
+    await Promise.all([readStream(stdout, "out"), readStream(stderr, "err")]);
+    const status = await proc.status;
+    if (!status.success) {
+      throw new Error(`yt-dlp exited with code ${status.code}`);
     }
     await this.#writeManifestFromArtifacts(request, settings, targets);
   }
@@ -232,9 +285,16 @@ export class DownloadWorker {
     const artifacts: DownloadArtifact[] = [];
     for await (const entry of Deno.readDir(cacheDir)) {
       if (!entry.isFile || !entry.name.startsWith(`${baseName}.`)) continue;
+      // Skip yt-dlp's info json files — they are metadata, not media containers
+      // Example: <basename>.info.json
+      if (entry.name.toLowerCase().endsWith(".info.json")) continue;
       if (entry.name.endsWith(".media.json")) continue;
       const lower = entry.name.toLowerCase();
       let kind: ManifestEntryKind = "container";
+      const lowerName = entry.name.toLowerCase();
+      if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".png") || lowerName.endsWith(".webp") || lowerName.endsWith(".bmp") || lowerName.endsWith(".gif")) {
+        kind = "thumbnail" as ManifestEntryKind;
+      }
       if (lower.includes(".fvideo") || lower.includes(".video")) {
         kind = "video";
       } else if (
@@ -265,6 +325,8 @@ export class DownloadWorker {
       throw new Error("yt-dlp did not produce any media files");
     }
     const entries = this.#buildManifestEntries(artifacts);
+    // find thumbnail artifact (if any)
+    const thumb = artifacts.find((a) => a.kind === "thumbnail");
     if (entries.length === 0) {
       throw new Error("No playable media artifacts were found");
     }
@@ -272,6 +334,7 @@ export class DownloadWorker {
       version: 1,
       requestId: request.id,
       sourceUrl: request.url,
+      thumbnail: thumb ? thumb.name : null,
       createdAt: Date.now(),
       entries,
     };

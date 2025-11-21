@@ -563,6 +563,7 @@ export const updateDownloadMetadata = (
   if (metadata.favoriteCount !== undefined) patch.favorite_count = metadata.favoriteCount;
   if (metadata.danmakuCount !== undefined) patch.danmaku_count = metadata.danmakuCount;
   if (metadata.uploader !== undefined) patch.uploader = metadata.uploader;
+  if (metadata.thumbnailUrl !== undefined) patch.thumbnail_url = metadata.thumbnailUrl;
   if (metadata.metaRefreshedAt !== undefined) patch.meta_refreshed_at = metadata.metaRefreshedAt;
   if (metadata.fileName !== undefined) patch.file_name = metadata.fileName;
   if (metadata.cacheFilePath !== undefined) patch.cache_file_path = metadata.cacheFilePath;

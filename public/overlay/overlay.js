@@ -42,6 +42,8 @@ let totalDuration = 0;
 let endedReported = false;
 let audioFinished = false;
 let videoFinished = false;
+let thumbnailUrl = null;
+let thumbnailImage = null;
 
 let audioLoopPromise = null;
 let stopToken = 0;
@@ -153,20 +155,38 @@ const resolveMediaEntries = async (url) => {
   if (!manifest || manifest.version !== 1 || !Array.isArray(manifest.entries) || manifest.entries.length === 0) {
     throw new Error("Invalid media manifest format");
   }
-  return manifest.entries.map((entry) => {
-    if (!entry || typeof entry.file !== "string") {
-      throw new Error("Manifest entry contains an invalid path");
-    }
-    const filePath = new URL(`/media/${entry.file}`, location.origin).href;
-    const kind = entry.kind === "audio" ? "audio" : entry.kind === "video" ? "video" : "container";
-    return { kind, url: filePath };
-  });
+  const entries = manifest.entries
+    .filter((entry) => {
+      // skip malformed entries
+      if (!entry || typeof entry.file !== "string") return false;
+      // ignore yt-dlp info json files — they are metadata, not playable media
+      if (entry.file.toLowerCase().endsWith(".info.json")) return false;
+      // defensive: ignore json entries in general
+      if ((entry.mimeType || "").toLowerCase().includes("application/json")) return false;
+      return true;
+    })
+    .map((entry) => {
+      const filePath = new URL(`/media/${entry.file}`, location.origin).href;
+      const kind = entry.kind === "audio" ? "audio" : entry.kind === "video" ? "video" : "container";
+      return { kind, url: filePath };
+    });
+  // if manifest contains top-level thumbnail and there is no video entry,
+  // expose it as an image entry so overlay can display it for audio-only files
+  // if the manifest has a thumbnail and (after filtering) there are no video tracks,
+  // expose the thumbnail as an image entry so overlay can display it for audio-only files
+  if (manifest.thumbnail && !entries.some((e) => e.kind === "video")) {
+    const thumbPath = new URL(`/media/${manifest.thumbnail}`, location.origin).href;
+    entries.unshift({ kind: "image", url: thumbPath });
+  }
+  return entries;
 };
 
 const loadInputs = async (entries) => {
   activeInputs = [];
   videoSink = null;
   audioSink = null;
+  thumbnailUrl = null;
+  thumbnailImage = null;
   audioSampleRate = null;
   audioFinished = false;
   videoFinished = false;
@@ -174,7 +194,14 @@ const loadInputs = async (entries) => {
   let videoTrack = null;
   let audioTrack = null;
 
+  thumbnailUrl = null;
+  thumbnailImage = null;
   for (const entry of entries) {
+    // image (thumbnail) is handled separately — not via mediabunny Input
+    if (entry.kind === "image") {
+      thumbnailUrl = entry.url;
+      continue;
+    }
     const input = new Input({ source: new UrlSource(entry.url), formats: ALL_FORMATS });
     activeInputs.push(input);
 
@@ -289,7 +316,27 @@ const startDecodersAt = async (positionSec) => {
     nextFrame = second;
     void updateNextFrame(iterToken);
   } else {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // no video track. if we have a thumbnail, draw it now and keep it visible
+    if (thumbnailUrl) {
+      try {
+        thumbnailImage = new Image();
+        // ensure CORS allowed for local media served by the app
+        thumbnailImage.crossOrigin = "anonymous";
+        await new Promise((resolve, reject) => {
+          thumbnailImage.onload = resolve;
+          thumbnailImage.onerror = reject;
+          thumbnailImage.src = thumbnailUrl;
+        });
+        // draw image sized to contain
+        const fitted = fitToContain(thumbnailImage.naturalWidth, thumbnailImage.naturalHeight, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(thumbnailImage, fitted.x, fitted.y, fitted.width, fitted.height);
+      } catch (err) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
   }
 
   if (audioSink) {

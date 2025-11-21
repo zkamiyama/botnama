@@ -11,6 +11,7 @@ export interface VideoMeta {
   mylistCount: number | null;
   favoriteCount: number | null;
   danmakuCount: number | null;
+  thumbnail: string | null;
 }
 
 const buildCookieArgs = (settings: ServerSettings) => {
@@ -33,7 +34,22 @@ export const fetchVideoMetadata = async (
   url: string,
   settings: ServerSettings,
 ): Promise<VideoMeta | null> => {
-  const args = ["--dump-json", "--skip-download", ...buildCookieArgs(settings), url];
+  // sanitize URL similar to download worker to avoid resolving playlists
+  const sanitizedUrl = (() => {
+    try {
+      const u = new URL(url);
+      const params = u.searchParams;
+      params.delete("list");
+      params.delete("start_radio");
+      params.delete("pp");
+      u.search = params.toString();
+      return u.toString();
+    } catch (_err) {
+      return url;
+    }
+  })();
+
+  const args = ["--dump-json", "--skip-download", "--no-playlist", ...buildCookieArgs(settings), sanitizedUrl];
   const command = new Deno.Command(settings.ytDlpPath, {
     args,
     stdout: "piped",
@@ -59,6 +75,24 @@ export const fetchVideoMetadata = async (
         Number(uploadDateStr.slice(6, 8)),
       )
       : null;
+    // determine thumbnail url — prefer 'thumbnails' array largest entry or 'thumbnail'
+    let thumbnail: string | null = null;
+    try {
+      if (Array.isArray(data.thumbnails) && data.thumbnails.length > 0) {
+        // pick the largest width if available
+        const best = data.thumbnails.reduce((prev: any, cur: any) => {
+          const pw = typeof prev?.width === "number" ? prev.width : 0;
+          const cw = typeof cur?.width === "number" ? cur.width : 0;
+          return cw > pw ? cur : prev;
+        });
+        thumbnail = best?.url ?? null;
+      } else if (typeof data.thumbnail === "string") {
+        thumbnail = data.thumbnail;
+      }
+    } catch (_err) {
+      thumbnail = null;
+    }
+
     return {
       title: data.title ?? null,
       duration: typeof data.duration === "number" ? data.duration : null,
@@ -73,6 +107,7 @@ export const fetchVideoMetadata = async (
         : null,
       favoriteCount: typeof data.like_count === "number" ? data.like_count : null,
       danmakuCount: typeof data.danmaku_count === "number" ? data.danmaku_count : null,
+      thumbnail,
     };
   } catch (err) {
     console.error("[metadata] parse failed", err);
