@@ -244,18 +244,30 @@
                 </div>
               </div>
 
-                <div class="rule-section">
-                  <div class="rule-row custom-sites-header">
+                <div class="rule-section" id="ruleCustomSiteSection">
+                  <div class="rule-row rule-list-header">
                     <span class="rule-section-title" id="ruleCustomSiteLabel" data-i18n="rule_custom_section">Custom whitelist</span>
                   </div>
-                  <div class="rule-group" id="ruleCustomSiteList"></div>
-                  <div class="rule-row custom-sites-footer">
-                    <button type="button" id="ruleCustomSiteAddButton" class="rule-add-button" aria-label="Add pattern">+</button>
+                  <div class="rule-group rule-list-group">
+                    <div class="rule-edit-list" id="ruleCustomSiteList"></div>
+                    <div class="rule-row rule-list-footer">
+                      <button
+                        type="button"
+                        id="ruleCustomSiteAddButton"
+                        class="rule-add-button"
+                        aria-label="Add pattern"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div class="rule-row rule-section-actions">
+                      <button type="button" id="ruleCustomSiteSaveButton" class="rule-section-save">Save</button>
+                    </div>
                   </div>
                 </div>
 
               <div class="rule-section" id="ruleNgUserSection">
-                <div class="rule-row">
+                  <div class="rule-row rule-list-header">
                   <span class="rule-section-title" id="ruleNgSectionLabel" data-i18n="rule_ng_section">NG users</span>
                 </div>
                 <div class="rule-row">
@@ -264,25 +276,25 @@
                     <span id="ruleNgUserToggleLabel" data-i18n="rule_ng_enable">Block NG user IDs</span>
                   </label>
                 </div>
-                <div class="rule-group" id="ruleNgUserGroup">
-                  <div class="rule-row ng-user-input-row">
-                    <label for="ruleNgUserInput" id="ruleNgUserInputLabel" data-i18n="rule_ng_input_label">Add user ID</label>
-                    <div class="ng-user-input">
-                      <input type="text" id="ruleNgUserInput" placeholder="user123" autocomplete="off" />
-                      <button type="button" id="ruleNgUserAddButton">Add</button>
+                  <div class="rule-group rule-list-group" id="ruleNgUserGroup">
+                    <p class="rule-hint" id="ruleNgUserHint" data-i18n="rule_ng_hint">Right-click a comment to add quickly.</p>
+                    <div class="rule-edit-list" id="ruleNgUserList" aria-live="polite"></div>
+                    <div class="rule-row rule-list-footer">
+                      <button
+                        type="button"
+                        id="ruleNgUserAddButton"
+                        class="rule-add-button"
+                        aria-label="Add NG user"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div class="rule-row rule-section-actions">
+                      <button type="button" id="ruleNgUserSaveButton" class="rule-section-save">Save</button>
                     </div>
                   </div>
-                  <p class="rule-hint" id="ruleNgUserHint" data-i18n="rule_ng_hint">Right-click a comment to add quickly.</p>
-                  <div class="ng-user-list" id="ruleNgUserList" aria-live="polite"></div>
-                  <div class="ng-user-actions">
-                    <button type="button" id="ruleNgUserClearButton" class="danger">Clear list</button>
-                  </div>
-                </div>
               </div>
 
-              <div class="rule-actions">
-                <button id="ruleSaveButton" type="button">Save</button>
-              </div>
               <p id="ruleStatus" class="status-text"></p>
             </div>
           </div>

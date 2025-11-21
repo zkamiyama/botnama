@@ -309,19 +309,6 @@ button.danger {
   min-height: 0;
 }
 
-#tabRules .rule-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-#tabRules .rule-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-#tabRules .rule-row input[type="checkbox"] {
-  margin-right: 4px;
 }
 #tabRules input[type="number"] {
   width: 110px;
@@ -338,6 +325,14 @@ button.danger {
 #tabRules .rule-actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(27, 29, 35, 0) 0%, rgba(27, 29, 35, 0.92) 45%, var(--panel-alt) 100%);
+  padding: 8px 0 4px;
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 5;
 }
 #tabRules .rule-hint {
   margin: 0;
@@ -361,15 +356,25 @@ button.danger {
   font-size: 13px;
 }
 
-.custom-sites-header {
+.rule-list-header {
   display: flex;
   align-items: center;
 }
 
-.custom-sites-footer {
+.rule-list-footer {
   display: flex;
   justify-content: flex-start;
   margin-top: 6px;
+}
+
+.rule-section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.rule-section-save {
+  min-width: 80px;
 }
 
 .rule-add-button {
@@ -392,7 +397,17 @@ button.danger {
   color: var(--accent);
 }
 
-.custom-site-row {
+.rule-group.rule-list-group {
+  gap: 6px;
+}
+
+.rule-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rule-entry-row {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -400,9 +415,10 @@ button.danger {
   background: rgba(255, 255, 255, 0.03);
   padding: 6px;
   border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.custom-site-row input {
+.rule-entry-input {
   flex: 1 1 200px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -411,7 +427,7 @@ button.danger {
   color: var(--text-strong);
 }
 
-.custom-site-row button {
+.rule-entry-remove {
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -421,75 +437,8 @@ button.danger {
   align-self: center;
 }
 
-.custom-site-row button:hover {
+.rule-entry-remove:hover {
   color: var(--danger);
-}
-
-.ng-user-input-row {
-  flex-wrap: wrap;
-}
-
-.ng-user-input {
-  display: flex;
-  gap: 6px;
-  flex: 1;
-  flex-wrap: wrap;
-}
-
-.ng-user-input input {
-  flex: 1 1 180px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 6px;
-  background: var(--panel);
-  color: var(--text-strong);
-}
-
-.ng-user-input button {
-  min-width: 64px;
-}
-
-.ng-user-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 4px 0;
-  min-height: 32px;
-}
-
-.ng-user-list.empty::before {
-  content: attr(data-empty-label);
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.ng-user-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.ng-user-chip button {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-}
-
-.ng-user-chip button:hover {
-  color: var(--danger);
-}
-
-.ng-user-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .rule-group {

@@ -56,17 +56,14 @@ const rulePollEnableToggle = document.getElementById("rulePollEnableToggle");
 const rulePollIntervalInput = document.getElementById("rulePollInterval");
 const rulePollWindowInput = document.getElementById("rulePollWindow");
 const rulePollStopDelayInput = document.getElementById("rulePollStopDelay");
-const ruleSaveButton = document.getElementById("ruleSaveButton");
 const ruleStatus = document.getElementById("ruleStatus");
 const ruleNgSectionLabel = document.getElementById("ruleNgSectionLabel");
 const ruleNgUserToggle = document.getElementById("ruleNgUserToggle");
 const ruleNgUserToggleLabel = document.getElementById("ruleNgUserToggleLabel");
 const ruleNgUserGroup = document.getElementById("ruleNgUserGroup");
-const ruleNgUserInputLabel = document.getElementById("ruleNgUserInputLabel");
-const ruleNgUserInput = document.getElementById("ruleNgUserInput");
 const ruleNgUserAddButton = document.getElementById("ruleNgUserAddButton");
 const ruleNgUserList = document.getElementById("ruleNgUserList");
-const ruleNgUserClearButton = document.getElementById("ruleNgUserClearButton");
+const ruleNgUserSaveButton = document.getElementById("ruleNgUserSaveButton");
 const ruleNgUserHint = document.getElementById("ruleNgUserHint");
 const localeSelect = document.getElementById("localeSelect");
 const ruleSiteSectionLabel = document.getElementById("ruleSiteSectionLabel");
@@ -76,6 +73,7 @@ const ruleSiteBilibiliToggle = document.getElementById("ruleSiteBilibiliToggle")
 const ruleCustomSiteLabel = document.getElementById("ruleCustomSiteLabel");
 const ruleCustomSiteList = document.getElementById("ruleCustomSiteList");
 const ruleCustomSiteAddButton = document.getElementById("ruleCustomSiteAddButton");
+const ruleCustomSiteSaveButton = document.getElementById("ruleCustomSiteSaveButton");
 const logTableBody = document.getElementById("logTableBody");
 const logCsvButton = document.getElementById("logCsvButton");
 const logCopyButton = document.getElementById("logCopyButton");
@@ -270,39 +268,59 @@ const setupTabDragAndDrop = () => {
 
 setupTabDragAndDrop();
 
-const setNgUserListPlaceholder = () => {
-  if (ruleNgUserList) {
-    ruleNgUserList.setAttribute("data-empty-label", t("rule_ng_empty"));
+const createNgUserRow = (userId = "") => {
+  if (!ruleNgUserList) return null;
+  const wrapper = document.createElement("div");
+  wrapper.className = "rule-entry-row ng-user-row";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "rule-entry-input ng-user-field";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  if (typeof userId === "string") {
+    input.value = userId;
   }
+  const placeholder = t("rule_ng_placeholder");
+  if (placeholder) input.placeholder = placeholder;
+  const removeButton = document.createElement("button");
+  removeButton.type = "button";
+  removeButton.className = "rule-entry-remove";
+  removeButton.innerHTML = "&times;";
+  const removeLabel = t("rule_custom_remove");
+  removeButton.setAttribute("aria-label", removeLabel);
+  removeButton.title = removeLabel;
+  removeButton.addEventListener("click", () => {
+    wrapper.remove();
+  });
+  wrapper.append(input, removeButton);
+  ruleNgUserList.appendChild(wrapper);
+  refreshEditableListPlaceholders();
+  return wrapper;
 };
 
 function renderNgUserList(ids = []) {
   if (!ruleNgUserList) return;
-  setNgUserListPlaceholder();
   ruleNgUserList.innerHTML = "";
   const entries = Array.isArray(ids) ? ids : [];
-  if (entries.length === 0) {
-    ruleNgUserList.classList.add("empty");
-    return;
-  }
-  ruleNgUserList.classList.remove("empty");
-  entries.forEach((userId) => {
-    const chip = document.createElement("span");
-    chip.className = "ng-user-chip";
-    chip.dataset.userId = userId;
-    const label = document.createElement("span");
-    label.textContent = userId;
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.innerHTML = "&times;";
-    const removeLabel = t("rule_custom_remove");
-    removeButton.setAttribute("aria-label", removeLabel);
-    removeButton.title = removeLabel;
-    removeButton.addEventListener("click", () => removeNgUserEntry(userId));
-    chip.append(label, removeButton);
-    ruleNgUserList.appendChild(chip);
-  });
+  entries.forEach((userId) => createNgUserRow(userId));
 }
+
+const ensureNgBlockingEnabled = () => {
+  if (ruleNgUserToggle && !ruleNgUserToggle.checked) {
+    ruleNgUserToggle.checked = true;
+    updateRuleUiState();
+  }
+};
+
+const upsertNgUserValue = (userId) => {
+  const value = (userId ?? "").trim();
+  if (!value || !ruleNgUserList) return null;
+  const existing = Array.from(ruleNgUserList.querySelectorAll(".ng-user-field"))
+    .find((input) => input.value.trim() === value);
+  if (existing) return existing;
+  const row = createNgUserRow(value);
+  return row?.querySelector(".ng-user-field") ?? null;
+};
 
 const COLUMN_WIDTH_STORAGE_KEY = "dock_comment_column_widths";
 const COLUMN_MIN_WIDTH = { time: 60, user: 100, body: 160 };
@@ -358,7 +376,6 @@ const configureLocale = async () => {
   const cooldownLabel = document.querySelector("label[for='ruleCooldownMinutes']");
   if (cooldownLabel) cooldownLabel.textContent = t("rule_cooldown");
   if (ruleCooldownHint) ruleCooldownHint.textContent = t("rule_cooldown_hint");
-  if (ruleSaveButton) ruleSaveButton.textContent = t("rule_save");
   if (ruleConcurrentLabel) ruleConcurrentLabel.textContent = t("rule_concurrent_enable");
   if (ruleConcurrentMaxLabel) ruleConcurrentMaxLabel.textContent = t("rule_concurrent_max");
   if (ruleSiteSectionLabel) ruleSiteSectionLabel.textContent = t("rule_site_section");
@@ -384,16 +401,19 @@ const configureLocale = async () => {
     ruleCustomSiteAddButton.setAttribute("aria-label", label);
     ruleCustomSiteAddButton.title = label;
   }
+  if (ruleCustomSiteSaveButton) ruleCustomSiteSaveButton.textContent = t("rule_save");
   if (ruleNgSectionLabel) ruleNgSectionLabel.textContent = t("rule_ng_section");
   if (ruleNgUserToggleLabel) ruleNgUserToggleLabel.textContent = t("rule_ng_enable");
-  if (ruleNgUserInputLabel) ruleNgUserInputLabel.textContent = t("rule_ng_input_label");
-  if (ruleNgUserInput) ruleNgUserInput.placeholder = t("rule_ng_placeholder");
   if (ruleNgUserHint) ruleNgUserHint.textContent = t("rule_ng_hint");
-  if (ruleNgUserAddButton) ruleNgUserAddButton.textContent = t("rule_ng_add");
-  if (ruleNgUserClearButton) ruleNgUserClearButton.textContent = t("rule_ng_clear");
-  if (ruleNgUserList) ruleNgUserList.setAttribute("data-empty-label", t("rule_ng_empty"));
+  if (ruleNgUserAddButton) {
+    const label = t("rule_ng_add");
+    ruleNgUserAddButton.textContent = "+";
+    ruleNgUserAddButton.setAttribute("aria-label", label);
+    ruleNgUserAddButton.title = label;
+  }
+  if (ruleNgUserSaveButton) ruleNgUserSaveButton.textContent = t("rule_save");
   renderNgUserList(latestRules?.ngUserIds ?? []);
-  refreshCustomSitePlaceholders();
+  refreshEditableListPlaceholders();
   const headerRow = document.querySelector(".comment-table-header");
   if (headerRow) {
     const titles = headerRow.querySelectorAll(".column-title");
@@ -1005,65 +1025,7 @@ async function toggleNgUserRule(enabled) {
   }
 }
 
-async function addNgUserEntry(userId, { ensureEnabled = false, button, silent = false } = {}) {
-  const value = (userId ?? "").trim();
-  if (!value) return false;
-  if (button) button.disabled = true;
-  try {
-    const result = await fetchJSON("/api/rules/ng-users", {
-      method: "POST",
-      body: JSON.stringify({ userId: value, enable: ensureEnabled }),
-    });
-    applyNgRulePatch(result?.rule ?? null);
-    await reloadRulesFromServer();
-    if (!silent && ruleStatus) {
-      ruleStatus.textContent = t("ng_user_add_done", { user: value });
-    }
-    return true;
-  } catch (err) {
-    if (!silent && ruleStatus) ruleStatus.textContent = t("ng_user_action_fail", err.message);
-    throw err;
-  } finally {
-    if (button) button.disabled = false;
-  }
-}
-
-async function removeNgUserEntry(userId, { silent = false } = {}) {
-  const value = (userId ?? "").trim();
-  if (!value) return false;
-  try {
-    const result = await fetchJSON(`/api/rules/ng-users/${encodeURIComponent(value)}`, {
-      method: "DELETE",
-    });
-    applyNgRulePatch(result?.rule ?? null);
-    await reloadRulesFromServer();
-    if (!silent && ruleStatus) {
-      ruleStatus.textContent = t("ng_user_remove_done", { user: value });
-    }
-    return true;
-  } catch (err) {
-    if (!silent && ruleStatus) ruleStatus.textContent = t("ng_user_action_fail", err.message);
-    throw err;
-  }
-}
-
-async function clearNgUserEntries({ button, silent = false } = {}) {
-  if (button) button.disabled = true;
-  try {
-    const result = await fetchJSON("/api/rules/ng-users/clear", { method: "POST" });
-    applyNgRulePatch(result?.rule ?? null);
-    await reloadRulesFromServer();
-    if (!silent && ruleStatus) {
-      ruleStatus.textContent = t("ng_user_clear_done");
-    }
-    return true;
-  } catch (err) {
-    if (!silent && ruleStatus) ruleStatus.textContent = t("ng_user_action_fail", err.message);
-    throw err;
-  } finally {
-    if (button) button.disabled = false;
-  }
-}
+// NG users now share the editable list UI; entries are persisted via the rule save button.
 
 const renderSummary = (data) => {
   const duration = formatDuration(data.totalDurationSecPending || 0);
@@ -1606,9 +1568,17 @@ commentContextMenu.addEventListener("click", async (event) => {
       await copyTextToClipboard(targetUserId);
       if (commentStatus) commentStatus.textContent = t("user_id_copy_done");
     } else if (action === "add-ng-user" && targetUserId) {
-      await addNgUserEntry(targetUserId, { ensureEnabled: true, silent: true });
-      if (commentStatus) {
-        commentStatus.textContent = t("ng_user_add_done", { user: targetUserId });
+      ensureNgBlockingEnabled();
+      upsertNgUserValue(targetUserId);
+      try {
+        await saveRules({ silent: true });
+        if (commentStatus) {
+          commentStatus.textContent = t("ng_user_add_done", { user: targetUserId });
+        }
+      } catch (err) {
+        if (commentStatus) {
+          commentStatus.textContent = t("ng_user_action_fail", err.message);
+        }
       }
     }
   } catch (err) {
@@ -1976,21 +1946,26 @@ const generateCustomSiteId = () =>
     ? crypto.randomUUID()
     : `custom-${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
 
-const refreshCustomSitePlaceholders = () => {
+const refreshEditableListPlaceholders = () => {
   const patternPlaceholder = t("rule_custom_pattern_placeholder");
   document.querySelectorAll(".custom-site-pattern").forEach((input) => {
     input.setAttribute("placeholder", patternPlaceholder);
   });
-  document.querySelectorAll(".custom-site-remove").forEach((button) => {
-    button.setAttribute("aria-label", t("rule_custom_remove"));
-    button.title = t("rule_custom_remove");
+  const ngPlaceholder = t("rule_ng_placeholder");
+  document.querySelectorAll(".ng-user-field").forEach((input) => {
+    input.setAttribute("placeholder", ngPlaceholder);
+  });
+  const removeLabel = t("rule_custom_remove");
+  document.querySelectorAll(".rule-entry-remove").forEach((button) => {
+    button.setAttribute("aria-label", removeLabel);
+    button.title = removeLabel;
   });
 };
 
 const createCustomSiteRow = (entry = {}) => {
   if (!ruleCustomSiteList) return null;
   const wrapper = document.createElement("div");
-  wrapper.className = "custom-site-row";
+  wrapper.className = "rule-entry-row custom-site-row";
   const idValue = typeof entry.id === "string" && entry.id.length > 0
     ? entry.id
     : generateCustomSiteId();
@@ -1998,18 +1973,18 @@ const createCustomSiteRow = (entry = {}) => {
 
   const patternInput = document.createElement("input");
   patternInput.type = "text";
-  patternInput.className = "custom-site-pattern";
+  patternInput.className = "rule-entry-input custom-site-pattern";
   if (typeof entry.pattern === "string") patternInput.value = entry.pattern;
 
   const removeButton = document.createElement("button");
   removeButton.type = "button";
-  removeButton.className = "custom-site-remove";
+  removeButton.className = "rule-entry-remove custom-site-remove";
   removeButton.innerHTML = "&times;";
   removeButton.addEventListener("click", () => wrapper.remove());
 
   wrapper.append(patternInput, removeButton);
   ruleCustomSiteList.appendChild(wrapper);
-  refreshCustomSitePlaceholders();
+  refreshEditableListPlaceholders();
   return wrapper;
 };
 
@@ -2018,9 +1993,7 @@ const renderCustomSiteRows = (rows) => {
   ruleCustomSiteList.innerHTML = "";
   if (Array.isArray(rows) && rows.length > 0) {
     rows.forEach((row) => createCustomSiteRow(row));
-    return;
   }
-  createCustomSiteRow();
 };
 
 const collectCustomSiteRows = () => {
@@ -2044,11 +2017,12 @@ const collectCustomSiteRows = () => {
 function collectNgUserIds() {
   if (!ruleNgUserList) return [];
   const ids = [];
-  ruleNgUserList.querySelectorAll(".ng-user-chip").forEach((chip) => {
-    const value = chip.dataset.userId;
-    if (value) {
-      ids.push(value);
-    }
+  const seen = new Set();
+  ruleNgUserList.querySelectorAll(".ng-user-field").forEach((input) => {
+    const value = input.value.trim();
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    ids.push(value);
   });
   return ids;
 }
@@ -2057,35 +2031,22 @@ ruleCustomSiteAddButton?.addEventListener("click", () => {
   createCustomSiteRow();
 });
 
-ruleNgUserAddButton?.addEventListener("click", async () => {
-  if (!ruleNgUserInput) return;
-  const value = ruleNgUserInput.value.trim();
-  if (!value) return;
-  try {
-    await addNgUserEntry(value, {
-      ensureEnabled: ruleNgUserToggle?.checked ?? false,
-      button: ruleNgUserAddButton,
-    });
-    ruleNgUserInput.value = "";
-  } catch (_err) {
-    // errors handled in addNgUserEntry
-  }
+ruleCustomSiteSaveButton?.addEventListener("click", () => {
+  saveRules().catch(() => {
+    // errors handled inside saveRules
+  });
 });
 
-ruleNgUserInput?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.isComposing) {
-    event.preventDefault();
-    ruleNgUserAddButton?.click();
-  }
+ruleNgUserAddButton?.addEventListener("click", () => {
+  const row = createNgUserRow();
+  ensureNgBlockingEnabled();
+  row?.querySelector(".ng-user-field")?.focus();
 });
 
-ruleNgUserClearButton?.addEventListener("click", async () => {
-  if (!confirm(t("confirm_clear_ng_users"))) return;
-  try {
-    await clearNgUserEntries({ button: ruleNgUserClearButton });
-  } catch (_err) {
-    // status already updated inside helper
-  }
+ruleNgUserSaveButton?.addEventListener("click", () => {
+  saveRules().catch(() => {
+    // errors handled inside saveRules
+  });
 });
 
 const renderRules = (rules) => {
@@ -2162,40 +2123,56 @@ async function reloadRulesFromServer() {
   return pendingRulesReload;
 }
 
-ruleSaveButton?.addEventListener("click", async () => {
-  ruleSaveButton.disabled = true;
-  ruleStatus.textContent = "";
+function buildRulePayload() {
+  return {
+  enabled: ruleEnableToggle?.checked ?? true,
+  maxDurationMinutes: Number(ruleMaxDurationInput?.value ?? 0),
+  disallowDuplicates: ruleNoDuplicateToggle?.checked ?? true,
+  cooldownMinutes: Number(ruleCooldownMinutesInput?.value ?? 0),
+  pollEnabled: rulePollEnableToggle?.checked ?? false,
+  pollIntervalSec: Number(rulePollIntervalInput?.value ?? 90),
+  pollWindowSec: Number(rulePollWindowInput?.value ?? 20),
+  pollStopDelaySec: Number(rulePollStopDelayInput?.value ?? 10),
+  allowYoutube: ruleSiteYoutubeToggle?.checked ?? true,
+  allowNicovideo: ruleSiteNicovideoToggle?.checked ?? true,
+  allowBilibili: ruleSiteBilibiliToggle?.checked ?? true,
+  customSites: collectCustomSiteRows(),
+  concurrentLimitEnabled: ruleConcurrentToggle?.checked ?? false,
+  concurrentLimitCount: Number(ruleConcurrentMaxInput?.value ?? 5),
+    ngUserBlockingEnabled: ruleNgUserToggle?.checked ?? false,
+    ngUserIds: collectNgUserIds(),
+  };
+}
+
+async function saveRules({ silent = false } = {}) {
+  const buttonsToDisable = [ruleCustomSiteSaveButton, ruleNgUserSaveButton]
+    .filter((btn) => Boolean(btn));
+  buttonsToDisable.forEach((btn) => {
+    btn.disabled = true;
+  });
+  if (!silent && ruleStatus) ruleStatus.textContent = "";
   try {
-    const payload = {
-      enabled: ruleEnableToggle?.checked ?? true,
-      maxDurationMinutes: Number(ruleMaxDurationInput?.value ?? 0),
-      disallowDuplicates: ruleNoDuplicateToggle?.checked ?? true,
-      cooldownMinutes: Number(ruleCooldownMinutesInput?.value ?? 0),
-      pollEnabled: rulePollEnableToggle?.checked ?? false,
-      pollIntervalSec: Number(rulePollIntervalInput?.value ?? 90),
-      pollWindowSec: Number(rulePollWindowInput?.value ?? 20),
-      pollStopDelaySec: Number(rulePollStopDelayInput?.value ?? 10),
-      allowYoutube: ruleSiteYoutubeToggle?.checked ?? true,
-      allowNicovideo: ruleSiteNicovideoToggle?.checked ?? true,
-      allowBilibili: ruleSiteBilibiliToggle?.checked ?? true,
-      customSites: collectCustomSiteRows(),
-      concurrentLimitEnabled: ruleConcurrentToggle?.checked ?? false,
-      concurrentLimitCount: Number(ruleConcurrentMaxInput?.value ?? 5),
-      ngUserBlockingEnabled: ruleNgUserToggle?.checked ?? false,
-      ngUserIds: collectNgUserIds(),
-    };
+    const payload = buildRulePayload();
     const result = await fetchJSON("/api/rules", {
       method: "POST",
       body: JSON.stringify(payload),
     });
     renderRules(result?.rules);
-    ruleStatus.textContent = t("rule_saved");
+    if (!silent && ruleStatus) {
+      ruleStatus.textContent = t("rule_saved");
+    }
+    return result;
   } catch (err) {
-    ruleStatus.textContent = `${t("rule_save_failed")}: ${err.message}`;
+    if (!silent && ruleStatus) {
+      ruleStatus.textContent = `${t("rule_save_failed")}: ${err.message}`;
+    }
+    throw err;
   } finally {
-    ruleSaveButton.disabled = false;
+    buttonsToDisable.forEach((btn) => {
+      btn.disabled = false;
+    });
   }
-});
+}
 
 updateYtDlpButton.addEventListener("click", async () => {
   updateYtDlpButton.disabled = true;

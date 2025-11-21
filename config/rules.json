@@ -10,16 +10,9 @@
   "allowYoutube": true,
   "allowNicovideo": true,
   "allowBilibili": true,
-  "customSites": [
-    {
-      "id": "0a31d612-8ff1-41ce-a638-134272c038bf",
-      "pattern": "https://www.dailymotion.com"
-    }
-  ],
+  "customSites": [],
   "concurrentLimitEnabled": false,
   "concurrentLimitCount": 5,
   "ngUserBlockingEnabled": true,
-  "ngUserIds": [
-    "UCfgNkXogvv-Odal644qcwDA"
-  ]
+  "ngUserIds": []
 }
