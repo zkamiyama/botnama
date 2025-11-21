@@ -1,5 +1,9 @@
 *.md
 !USAGE.md
+# Ignore local config files (do not commit local configs)
+# All files under `config/` are ignored to avoid committing secrets or local settings.
+config/**
+
 # OS / editor
 .DS_Store
 Thumbs.db
@@ -30,7 +34,7 @@ temp/
 # App specific runtime caches and media files
 cache/
 cache/videos/**
-# Note: config/settings.toml is intentionally NOT ignored — it contains app config (non-secret) by default.
+
 
 # Database files (ignore whole directory to avoid leaking URLs / cached data)
 db/
