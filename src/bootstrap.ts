@@ -13,9 +13,6 @@ const GITHUB_BINARY_HEADERS = {
   "user-agent": GITHUB_JSON_HEADERS["user-agent"],
 };
 
-const YT_DLP_EJS_RELEASE_API = "https://api.github.com/repos/yt-dlp/ejs/releases/latest";
-const YT_DLP_EJS_INSTALL_ROOT = join(PROJECT_ROOT, "bin", "yt-dlp-ejs");
-
 const FFMPEG_RELEASE_API = "https://api.github.com/repos/yt-dlp/FFmpeg-Builds/releases/latest";
 
 const YT_DLP_SOURCES: Record<Deno.OS, string | undefined> = {
@@ -136,51 +133,6 @@ const ensureBinary = async (
   console.log(`[bootstrap] ${label} ready at ${absolutePath}`);
 };
 
-const ensureYtDlpEjs = async (force = false) => {
-  const versionMarker = join(YT_DLP_EJS_INSTALL_ROOT, "VERSION");
-  const legacyVersionFile = join(YT_DLP_EJS_INSTALL_ROOT, "yt_dlp_ejs", "_version.py");
-  if (!force && (await fileExists(versionMarker) || await fileExists(legacyVersionFile))) {
-    return;
-  }
-
-  console.log("[bootstrap] preparing yt-dlp-ejs package");
-  await Deno.remove(YT_DLP_EJS_INSTALL_ROOT, { recursive: true }).catch(() => {});
-
-  const release = await fetchGithubJson<GithubRelease>(YT_DLP_EJS_RELEASE_API);
-  const wheelAsset = release.assets.find((asset) => asset.name.endsWith(".whl"));
-  if (!wheelAsset) {
-    throw new Error("yt-dlp-ejs wheel asset not found in latest release");
-  }
-
-  let detectedVersion: string | null = null;
-  const wheelNameMatch = wheelAsset.name.match(/yt_dlp_ejs-([^-]+)-/i);
-  if (wheelNameMatch) {
-    detectedVersion = wheelNameMatch[1];
-  } else if (release.tag_name) {
-    detectedVersion = release.tag_name.replace(/^v/i, "");
-  }
-
-  const wheelBytes = await fetchBinary(wheelAsset.browser_download_url, {
-    headers: GITHUB_BINARY_HEADERS,
-  });
-  const zip = await JSZip.loadAsync(wheelBytes);
-
-  for (const [path, entry] of Object.entries(zip.files)) {
-    if (!path.startsWith("yt_dlp_ejs/") || entry.dir) continue;
-    const destination = join(YT_DLP_EJS_INSTALL_ROOT, ...path.split("/"));
-    ensureDirSync(dirname(destination));
-    const content = await entry.async("uint8array");
-    await Deno.writeFile(destination, content);
-  }
-
-  console.log(`[bootstrap] yt-dlp-ejs ${release.tag_name ?? "latest"} ready`);
-
-  if (detectedVersion) {
-    await Deno.writeTextFile(versionMarker, `${detectedVersion}\n`).catch((err: unknown) => {
-      console.warn("[bootstrap] failed to record yt-dlp-ejs version", err);
-    });
-  }
-};
 
 const stripArchiveExtension = (name: string) =>
   name.replace(/\.tar\.xz$/i, "").replace(/\.zip$/i, "");
@@ -247,7 +199,6 @@ export const bootstrapEnvironment = async (settings: ServerSettings) => {
   ensureDirSync(cacheDir);
   await ensureYtDlpBinary(settings);
   await ensureFfmpegBinary(settings);
-  await ensureYtDlpEjsResources();
 };
 
 export const ensureYtDlpBinary = async (settings: ServerSettings, force = false) =>
@@ -292,7 +243,5 @@ export const ensureFfmpegBinary = async (settings: ServerSettings, force = false
   }
   console.log(`[bootstrap] ffmpeg ready at ${absolutePath}`);
 };
-
-export const ensureYtDlpEjsResources = async (force = false) => await ensureYtDlpEjs(force);
 
 export const resolveProjectPath = toAbsolutePath;

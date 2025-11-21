@@ -27,14 +27,13 @@ const userNameInput = document.getElementById("userNameInput");
 const formStatus = document.getElementById("formStatus");
 const commentTableBody = document.getElementById("commentTableBody");
 const commentTableEl = document.querySelector(".comment-table");
-const columnResizers = document.querySelectorAll(".column-resizer");
+const commentColumnResizers = document.querySelectorAll(".comment-column-resizer");
+const logTableEl = document.querySelector(".log-table");
+const logColumnResizers = document.querySelectorAll(".log-column-resizer");
 const updateYtDlpButton = document.getElementById("updateYtDlpButton");
-const refreshYtDlpEjsButton = document.getElementById("refreshYtDlpEjsButton");
 const systemMessageEl = document.getElementById("systemMessage");
 const ytDlpCombinedLabel = document.getElementById("ytDlpCombinedLabel");
 const ytDlpCombinedValue = document.getElementById("ytDlpCombinedValue");
-const ytDlpEjsLabel = document.getElementById("ytDlpEjsLabel");
-const ytDlpEjsStatus = document.getElementById("ytDlpEjsStatus");
 const playbackControlsEl = document.getElementById("playbackControls");
 const playbackSeekEl = document.getElementById("playbackSeek");
 const playbackCurrentEl = document.getElementById("playbackCurrent");
@@ -323,8 +322,12 @@ const upsertNgUserValue = (userId) => {
 };
 
 const COLUMN_WIDTH_STORAGE_KEY = "dock_comment_column_widths";
-const COLUMN_MIN_WIDTH = { time: 60, user: 100, body: 160 };
+const LOG_COLUMN_WIDTH_STORAGE_KEY = "dock_log_column_widths";
+// Minimum column widths (px). Kept consistent between comments and logs where applicable.
+const COLUMN_MIN_WIDTH = { time: 32, user: 48, body: 64 };
+const LOG_COLUMN_MIN_WIDTH = { time: 32, title: 48, url: 64 };
 let commentColumnWidths = null;
+let logColumnWidths = null;
 let latestRules = null;
 
 const configureLocale = async () => {
@@ -435,7 +438,6 @@ const configureLocale = async () => {
   if (commentCopyButton) commentCopyButton.textContent = t("action_copy");
   if (commentClearButton) commentClearButton.textContent = t("comments_clear");
   if (ytDlpCombinedLabel) ytDlpCombinedLabel.textContent = t("system_ytdlp_combined");
-  if (ytDlpEjsLabel) ytDlpEjsLabel.textContent = t("system_ejs");
   // buttons
   stopButton?.setAttribute("title", t("btn_stop"));
   autoButton?.setAttribute("title", t("btn_auto"));
@@ -452,7 +454,6 @@ const configureLocale = async () => {
   seekBackwardButton.textContent = t("seek_back");
   seekForwardButton.textContent = t("seek_forward");
   if (updateYtDlpButton) updateYtDlpButton.textContent = t("system_update_btn");
-  if (refreshYtDlpEjsButton) refreshYtDlpEjsButton.textContent = t("system_refresh_ejs_btn");
   if (commentFormLabel) commentFormLabel.textContent = t("comment_label");
   if (commentInput) commentInput.placeholder = t("comment_placeholder");
   if (userNameLabel) userNameLabel.textContent = t("user_label");
@@ -475,6 +476,7 @@ const configureLocale = async () => {
 };
 
 const COLUMN_KEYS = ["time", "user", "body"];
+const LOG_COLUMN_KEYS = ["time", "title", "url"];
 const LOG_FETCH_LIMIT = 200;
 let pendingRulesReload = null;
 
@@ -524,8 +526,8 @@ const applyCommentColumnWidths = () => {
 };
 
 const setupCommentColumnResizers = () => {
-  if (!columnResizers?.length || !commentTableEl) return;
-  columnResizers.forEach((handle) => {
+  if (!commentColumnResizers?.length || !commentTableEl) return;
+  commentColumnResizers.forEach((handle) => {
     handle.addEventListener("pointerdown", (event) => {
       const column = handle.dataset.column;
       if (!column) return;
@@ -570,6 +572,100 @@ const initializeCommentColumnSizing = () => {
   commentColumnWidths = loadCommentColumnWidths();
   applyCommentColumnWidths();
   setupCommentColumnResizers();
+};
+
+const loadLogColumnWidths = () => {
+  const base = { time: null, title: null, url: null };
+  try {
+    const stored = localStorage.getItem(LOG_COLUMN_WIDTH_STORAGE_KEY);
+    if (!stored) return base;
+    const parsed = JSON.parse(stored);
+    for (const key of LOG_COLUMN_KEYS) {
+      const value = Number(parsed?.[key]);
+      base[key] = Number.isFinite(value) ? Math.max(LOG_COLUMN_MIN_WIDTH[key] ?? 60, value) : null;
+    }
+  } catch (_) {
+    // ignore parse errors
+  }
+  return base;
+};
+
+const saveLogColumnWidths = () => {
+  if (!logColumnWidths) return;
+  try {
+    const payload = {};
+    for (const key of LOG_COLUMN_KEYS) {
+      const value = logColumnWidths[key];
+      if (typeof value === "number" && Number.isFinite(value)) {
+        payload[key] = value;
+      }
+    }
+    localStorage.setItem(LOG_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(payload));
+  } catch (_) {
+    // ignore storage errors
+  }
+};
+
+const applyLogColumnWidths = () => {
+  if (!logTableEl || !logColumnWidths) return;
+  for (const key of LOG_COLUMN_KEYS) {
+    const value = logColumnWidths[key];
+    const cssVar = `--log-col-${key}`;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      logTableEl.style.setProperty(cssVar, `${value}px`);
+    } else {
+      logTableEl.style.removeProperty(cssVar);
+    }
+  }
+};
+
+const setupLogColumnResizers = () => {
+  if (!logColumnResizers?.length || !logTableEl) return;
+  logColumnResizers.forEach((handle) => {
+    handle.addEventListener("pointerdown", (event) => {
+      const column = handle.dataset.column;
+      if (!column) return;
+      event.preventDefault();
+      const headerCell = handle.closest(".log-header-cell");
+      if (!headerCell) return;
+      if (!logColumnWidths) {
+        logColumnWidths = loadLogColumnWidths();
+      }
+      const startX = event.clientX;
+      const currentWidth = typeof logColumnWidths[column] === "number" &&
+          Number.isFinite(logColumnWidths[column])
+        ? logColumnWidths[column]
+        : headerCell.getBoundingClientRect().width;
+      const minWidth = LOG_COLUMN_MIN_WIDTH[column] ?? 80;
+      const previousUserSelect = document.body.style.userSelect;
+      document.body.style.userSelect = "none";
+      handle.classList.add("active");
+      const onMove = (moveEvent) => {
+        const delta = moveEvent.clientX - startX;
+        const nextWidth = Math.max(minWidth, currentWidth + delta);
+        logColumnWidths[column] = nextWidth;
+        applyLogColumnWidths();
+      };
+      const onUp = () => {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
+        handle.classList.remove("active");
+        document.body.style.userSelect = previousUserSelect;
+        saveLogColumnWidths();
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+    });
+  });
+};
+
+const initializeLogColumnSizing = () => {
+  if (!logTableEl) return;
+  logColumnWidths = loadLogColumnWidths();
+  applyLogColumnWidths();
+  setupLogColumnResizers();
 };
 
 let currentPlayingId = null;
@@ -1790,6 +1886,7 @@ const init = async () => {
 };
 
 initializeCommentColumnSizing();
+initializeLogColumnSizing();
 init();
 
 const renderComments = (items) => {
@@ -1885,16 +1982,8 @@ const renderSystem = (info) => {
   if (ytDlpCombinedValue) {
     ytDlpCombinedValue.textContent = `${currentVersion} (${latestVersion})`;
   }
-  const ejsCurrent = info?.ytDlpEjs?.version ?? "--";
-  const ejsLatest = info?.ytDlpEjs?.latest ?? "--";
-  if (ytDlpEjsStatus) {
-    ytDlpEjsStatus.textContent = `${ejsCurrent} (${ejsLatest})`;
-  }
   if (updateYtDlpButton) {
     updateYtDlpButton.disabled = !(info?.ytDlp?.updateAvailable);
-  }
-  if (refreshYtDlpEjsButton) {
-    refreshYtDlpEjsButton.disabled = !(info?.ytDlpEjs?.updateAvailable);
   }
 };
 
@@ -2174,33 +2263,19 @@ async function saveRules({ silent = false } = {}) {
   }
 }
 
-updateYtDlpButton.addEventListener("click", async () => {
-  updateYtDlpButton.disabled = true;
-  systemMessageEl.textContent = t("system_update_btn");
-  try {
-    const result = await fetchJSON("/api/system/update/yt-dlp", { method: "POST" });
-    systemMessageEl.textContent = result.ok
-      ? `${t("system_in_use")} ${result.version ?? ""}`
-      : result.message ?? t("msg_update_fail", "");
-  } catch (err) {
-    systemMessageEl.textContent = t("msg_update_fail", err.message);
-  } finally {
-    refreshAll();
-  }
-});
-
-refreshYtDlpEjsButton.addEventListener("click", async () => {
-  refreshYtDlpEjsButton.disabled = true;
-  systemMessageEl.textContent = t("system_refresh_ejs_btn");
-  try {
-    const result = await fetchJSON("/api/system/update/yt-dlp-ejs", { method: "POST" });
-    systemMessageEl.textContent = result.ok
-      ? `${t("system_ejs")} updated`
-      : result.message ?? t("msg_update_fail", "");
-  } catch (err) {
-    systemMessageEl.textContent = t("msg_update_fail", err.message);
-  } finally {
-    refreshAll();
-    refreshYtDlpEjsButton.disabled = false;
-  }
-});
+if (updateYtDlpButton) {
+  updateYtDlpButton.addEventListener("click", async () => {
+    updateYtDlpButton.disabled = true;
+    systemMessageEl.textContent = t("system_update_btn");
+    try {
+      const result = await fetchJSON("/api/system/update/yt-dlp", { method: "POST" });
+      systemMessageEl.textContent = result.ok
+        ? `${t("system_in_use")} ${result.version ?? ""}`
+        : result.message ?? t("msg_update_fail", "");
+    } catch (err) {
+      systemMessageEl.textContent = t("msg_update_fail", err.message);
+    } finally {
+      refreshAll();
+    }
+  });
+}

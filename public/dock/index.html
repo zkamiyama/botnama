@@ -96,15 +96,14 @@
               <div class="comment-table-header">
                 <div class="comment-header-cell" data-column="time">
                   <span class="column-title">Time</span>
-                  <span class="column-resizer" data-column="time"></span>
+                      <span class="column-resizer comment-column-resizer" data-column="time"></span>
                 </div>
                 <div class="comment-header-cell" data-column="user">
                   <span class="column-title">User</span>
-                  <span class="column-resizer" data-column="user"></span>
+                      <span class="column-resizer comment-column-resizer" data-column="user"></span>
                 </div>
                 <div class="comment-header-cell" data-column="body">
                   <span class="column-title">Body</span>
-                  <span class="column-resizer" data-column="body"></span>
                 </div>
               </div>
               <div class="comment-table-body" id="commentTableBody"></div>
@@ -124,9 +123,17 @@
               </div>
               <div class="log-table">
                 <div class="log-table-header">
-                  <span class="log-column" data-column="time">Time</span>
-                  <span class="log-column" data-column="title">Title</span>
-                  <span class="log-column" data-column="url">URL</span>
+                  <div class="log-header-cell" data-column="time">
+                    <span class="log-column" data-column="time">Time</span>
+                    <span class="column-resizer log-column-resizer" data-column="time"></span>
+                  </div>
+                  <div class="log-header-cell" data-column="title">
+                    <span class="log-column" data-column="title">Title</span>
+                    <span class="column-resizer log-column-resizer" data-column="title"></span>
+                  </div>
+                  <div class="log-header-cell" data-column="url">
+                    <span class="log-column" data-column="url">URL</span>
+                  </div>
                 </div>
                 <div class="log-table-body" id="logTableBody"></div>
               </div>
@@ -138,11 +145,6 @@
                 <span id="ytDlpCombinedLabel">yt-dlp (latest release)</span>
                 <span id="ytDlpCombinedValue">-- (--)</span>
                 <button type="button" id="updateYtDlpButton">Update</button>
-              </div>
-              <div class="system-row">
-                <span id="ytDlpEjsLabel">yt-dlp-ejs</span>
-                <span id="ytDlpEjsStatus">--</span>
-                <button type="button" id="refreshYtDlpEjsButton">Refresh</button>
               </div>
               <div class="system-message" id="systemMessage"></div>
             </div>

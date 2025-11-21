@@ -59,11 +59,11 @@ section {
 .metric {
   background: var(--panel-alt);
   border-radius: 3px;
-  padding: 6px 8px;
+  padding: 6px 6px;
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 48px;
 }
 
@@ -131,6 +131,11 @@ button {
   transition: opacity 0.2s ease;
   font-size: 12px;
   min-width: 28px;
+  min-height: 28px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 button img {
@@ -237,6 +242,7 @@ button.danger {
   display: none;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -244,7 +250,7 @@ button.danger {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow: auto;
+  overflow: visible;
 }
 
 #tabList .queue-list {
@@ -737,12 +743,12 @@ button.danger {
   overflow: hidden;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  --comment-col-time: 80px;
-  --comment-col-user: 200px;
+  --comment-col-time: 48px;
+  --comment-col-user: 120px;
   --comment-col-body: 1fr;
-  overflow-x: auto;
 }
 
 .comment-table-header,
@@ -753,7 +759,8 @@ button.danger {
   padding: 4px 6px;
 }
 
-.comment-header-cell {
+.comment-header-cell,
+.log-header-cell {
   position: relative;
   display: flex;
   align-items: center;
@@ -824,6 +831,7 @@ button.danger {
 .comment-table-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
 }
 
 .log-panel {
@@ -832,6 +840,7 @@ button.danger {
   gap: 6px;
   flex: 1;
   min-height: 0;
+  min-width: 0;
 }
 
 .action-bar {
@@ -864,14 +873,18 @@ button.danger {
   font-size: 11px;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  --log-col-time: 100px;
+  --log-col-title: 120px;
+  --log-col-url: auto;
 }
 
 .log-table-header,
 .log-row {
   display: grid;
-  grid-template-columns: 150px 1fr minmax(140px, 2fr);
+  grid-template-columns: var(--log-col-time) var(--log-col-title) var(--log-col-url);
   gap: 4px;
   padding: 4px 6px;
   align-items: center;
@@ -880,6 +893,11 @@ button.danger {
 .log-table-header {
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
+  font-weight: 600;
+}
+
+.log-header-cell .log-column {
+  flex: 1;
   font-weight: 600;
 }
 
@@ -892,6 +910,7 @@ button.danger {
 .log-table-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
 }
 
 .log-row:nth-child(even) {
@@ -974,12 +993,15 @@ button.danger {
   font-weight: 600;
 }
 .metric-value {
-  min-width: 40px;
-  text-align: center;
+  min-width: 32px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-variant-numeric: tabular-nums;
 }
 .metric-count {
-  min-width: 56px;
+  min-width: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

@@ -12,7 +12,7 @@ let source = null;
 const BAND_ANIM_IN_CLASS = "band-anim-in";
 const BAND_ANIM_OUT_CLASS = "band-anim-out";
 const BAND_ANIM_DURATION_MS = 360;
-const STACK_REORDER_DURATION_MS = 250;
+const STACK_REORDER_DURATION_MS = 1000;
 const MARQUEE_STATIC_MS = 3000;
 const MARQUEE_SPEED_PX_PER_SEC = 135;
 const MARQUEE_MIN_SCROLL_SEC = 3;
@@ -184,13 +184,17 @@ const hideBand = (entry, options = {}) => {
   }
   activeBands.delete(entry);
   if (immediate) {
+    // Remove immediately (other bands will move up instantly with no animation)
     cleanupBand(entry);
     return;
   }
   entry.band.classList.remove("visible");
   entry.band.classList.add("exit-left");
   triggerBandAnimation(entry.band, BAND_ANIM_OUT_CLASS);
-  setTimeout(() => cleanupBand(entry), BAND_ANIM_DURATION_MS);
+  setTimeout(() => {
+    // after exit animation, remove element — other bands reflow immediately
+    cleanupBand(entry);
+  }, BAND_ANIM_DURATION_MS);
 };
 
 const showBand = (entry, durationMs) => {
@@ -267,46 +271,14 @@ const enforceExclusivity = (kind, payload) => {
   return context;
 };
 
-const captureStackPositions = () => {
-  const positions = new Map();
-  for (const entry of activeBands) {
-    if (entry.band.isConnected) {
-      positions.set(entry.band, entry.band.getBoundingClientRect().top);
-    }
-  }
-  return positions;
-};
-
-const animateStackReflow = (beforePositions) => {
-  if (!beforePositions || beforePositions.size === 0) return;
-  requestAnimationFrame(() => {
-    for (const entry of activeBands) {
-      const el = entry.band;
-      if (!el.isConnected) continue;
-      const prevTop = beforePositions.get(el);
-      if (prevTop === undefined) continue;
-      const nextTop = el.getBoundingClientRect().top;
-      const deltaY = prevTop - nextTop;
-      if (Math.abs(deltaY) < 1) continue;
-      el.classList.add("stack-reflow");
-      el.style.setProperty("--stack-translate-y", `${deltaY}px`);
-      requestAnimationFrame(() => {
-        el.style.setProperty("--stack-translate-y", "0px");
-      });
-      setTimeout(() => {
-        el.classList.remove("stack-reflow");
-        el.style.removeProperty("--stack-translate-y");
-      }, STACK_REORDER_DURATION_MS + 50);
-    }
-  });
-};
+// no stack animation — removed animated reflow helpers so DOM reflow is immediate
 
 const showMessage = (payload) => {
   if (!shouldDisplayPayload(payload)) return;
   const level = payload.level ?? "info";
   const scope = payload.scope === "status" ? "status" : "info";
   const kind = classifyPayloadKind({ ...payload, scope });
-  const layoutBefore = activeBands.size > 0 ? captureStackPositions() : null;
+  // we intentionally do not capture or animate stack positions here
   const { anchorNode } = enforceExclusivity(kind, payload);
   const entry = createBandEntry(scope);
   const { band, marqueeEl, labelText: labelEl, labelWrap: wrapEl, payloadEl, textClone } = entry;
@@ -382,7 +354,6 @@ const showMessage = (payload) => {
   }
   applyMarquee(band, payloadEl, textClone, marqueeEl);
   showBand(entry, payload.durationMs);
-  animateStackReflow(layoutBefore);
 };
 
 const formatYmd = (ts) => {

@@ -397,6 +397,7 @@ export const deleteRequest = (id: string, options?: { preserveCommentState?: boo
     const existing = getById(id);
     commentId = existing?.commentId ?? null;
   }
+  db.prepare(`UPDATE playback_logs SET request_id = NULL WHERE request_id = :id`).run({ id });
   const stmt = db.prepare(`DELETE FROM requests WHERE id = :id`);
   stmt.run({ id });
   if (commentId) {
@@ -411,6 +412,7 @@ export const deleteRequest = (id: string, options?: { preserveCommentState?: boo
 
 export const deleteAllRequests = () => {
   const db = getDb();
+  db.exec(`UPDATE playback_logs SET request_id = NULL`);
   db.exec(`DELETE FROM requests`);
   db.exec(`
     UPDATE comments
@@ -439,7 +441,9 @@ export const countActiveRequestsByOwner = (ownerId: string): number => {
 
 export const deleteAllComments = () => {
   const db = getDb();
+  db.exec(`UPDATE requests SET comment_id = NULL WHERE comment_id IS NOT NULL`);
   db.exec(`DELETE FROM comments`);
+  emitDockEvent(DOCK_EVENT.REQUESTS);
   emitDockEvent(DOCK_EVENT.COMMENTS);
 };
 

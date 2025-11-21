@@ -11,7 +11,7 @@
     を取得し、`bin/ffmpeg.exe` として配置
   - macOS / Linux: 静的ビルドを `bin/ffmpeg` として配置
 
-`bin/` 配下に `yt-dlp.exe` と `yt-dlp-ejs/` を同梱済みなので、別途インストールは不要です（ffmpeg
+`bin/` 配下に `yt-dlp.exe` を同梱済みなので、別途インストールは不要です（ffmpeg
 は各自で配置してください）。
 
 ## 初期セットアップ
@@ -84,8 +84,8 @@ deno task dev
 
   ### System タブ
 
-  - 現在利用中と最新の yt-dlp 版本号、`yt-dlp-ejs` の状態を表示します。
-  - 「yt-dlp を更新」「yt-dlp-ejs を更新」ボタンから API 経由でアップデートを実行でき、成功すると Dock 全体が自動再読み込みされます。
+  - 現在利用中と最新の yt-dlp 版本号を表示します。
+  - 「yt-dlp を更新」ボタンから API 経由でアップデートを実行でき、成功すると Dock 全体が自動再読み込みされます。
 
   ### Rules タブ
 
@@ -185,7 +185,7 @@ https://github.com/DaisukeDaisuke/MultiCommentViewer
 | Overlay 接続ランプが赤  | Overlay ページが開いているか、WebSocket をブロックする拡張機能がないか確認                            |
 | ダウンロードが `FAILED` | `cache/videos` の書き込み権限、ネットワーク到達性、該当 URL の長さ制限（`maxVideoDurationSec`）を確認 |
 | 変換が `FAILED`         | `ffmpegPath` が正しく設定・配置されているか、コーデックが mp4/H.264/AAC に変換可能かを確認            |
-| bin のバイナリが古い    | `bin/yt-dlp.exe --version`、`bin/yt-dlp-ejs/yt/solver/lib.min.js` を最新に差し替え後、アプリ再起動    |
+| bin のバイナリが古い    | `bin/yt-dlp.exe --version` を最新に差し替え後、アプリ再起動    |
 
 ## ログ・データの掃除
 

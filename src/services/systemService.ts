@@ -1,6 +1,5 @@
-import { join } from "@std/path/join";
 import { ServerSettings } from "../types.ts";
-import { ensureYtDlpBinary, ensureYtDlpEjsResources, resolveProjectPath } from "../bootstrap.ts";
+import { ensureYtDlpBinary, resolveProjectPath } from "../bootstrap.ts";
 import { DOCK_EVENT, emitDockEvent } from "../events/dockEventBus.ts";
 
 const VERSION_CACHE_SUCCESS_TTL_MS = 60 * 60 * 1000; // 1 hour for successful lookups
@@ -139,74 +138,22 @@ const fetchLatestVersion = async (
 
 const normalizeTag = (value: string | null | undefined) => value?.replace(/^v/i, "") ?? null;
 
-const readYtDlpEjsVersion = async () => {
-  const candidates = [
-    "bin/yt-dlp-ejs/VERSION",
-    "bin/yt-dlp-ejs/yt_dlp_ejs/_version.py",
-  ];
-  for (const relPath of candidates) {
-    try {
-      const filePath = resolveProjectPath(relPath);
-      const text = await Deno.readTextFile(filePath);
-      if (relPath.endsWith("VERSION")) {
-        const trimmed = text.trim();
-        if (trimmed) return trimmed;
-      } else {
-        const match = text.match(/__version__\s*=\s*["'`](.+?)["'`]/);
-        if (match?.[1]) return match[1];
-      }
-    } catch (_err) {
-      // continue to next candidate
-    }
-  }
-  try {
-    const root = resolveProjectPath("bin/yt-dlp-ejs");
-    for await (const entry of Deno.readDir(root)) {
-      if (!entry.isDirectory || !entry.name.endsWith(".dist-info")) continue;
-      const metadataPath = join(root, entry.name, "METADATA");
-      try {
-        const metadata = await Deno.readTextFile(metadataPath);
-        const match = metadata.match(/^Version:\s*(.+)$/im);
-        if (match?.[1]) return match[1].trim();
-      } catch (_err) {
-        // ignore and continue
-      }
-    }
-  } catch (_err) {
-    // ignore root read errors
-  }
-  return null;
-};
-
 export const getSystemInfo = async (settings: ServerSettings) => {
   const ytDlpPath = resolveProjectPath(settings.ytDlpPath);
-  const [current, ytLatestRaw, ejsVersion, ejsLatestRaw] = await Promise.all([
+  const [current, ytLatestRaw] = await Promise.all([
     runCommand(ytDlpPath, ["--version"]),
     fetchLatestVersion("yt-dlp", [
       () => fetchGithubApiReleaseTag("yt-dlp/yt-dlp"),
       () => fetchGithubHtmlReleaseTag("yt-dlp/yt-dlp"),
       () => fetchPypiVersion("yt-dlp"),
     ]),
-    readYtDlpEjsVersion(),
-    fetchLatestVersion("yt-dlp-ejs", [
-      () => fetchGithubApiReleaseTag("yt-dlp/ejs"),
-      () => fetchGithubHtmlReleaseTag("yt-dlp/ejs"),
-      () => fetchPypiVersion("yt-dlp-ejs"),
-    ]),
   ]);
   const latest = normalizeTag(ytLatestRaw);
-  const ejsLatest = normalizeTag(ejsLatestRaw);
   return {
     ytDlp: {
       current,
       latest,
       updateAvailable: Boolean(current && latest && current !== latest),
-    },
-    ytDlpEjs: {
-      version: ejsVersion,
-      latest: ejsLatest,
-      updateAvailable: Boolean(ejsLatest && (!ejsVersion || ejsVersion !== ejsLatest)),
-      status: ejsVersion ? "installed" : "missing",
     },
   };
 };
@@ -217,8 +164,3 @@ export const updateYtDlpBinary = async (settings: ServerSettings) => {
   return runCommand(resolveProjectPath(settings.ytDlpPath), ["--version"]);
 };
 
-export const updateYtDlpEjs = async () => {
-  await ensureYtDlpEjsResources(true);
-  emitDockEvent(DOCK_EVENT.SYSTEM);
-  return readYtDlpEjsVersion();
-};

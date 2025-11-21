@@ -12,7 +12,7 @@ import {
   fetchAllPlaybackLogs,
   listPlaybackLogs,
 } from "../repositories/playbackLogsRepository.ts";
-import { getSystemInfo, updateYtDlpBinary, updateYtDlpEjs } from "../services/systemService.ts";
+import { getSystemInfo, updateYtDlpBinary } from "../services/systemService.ts";
 import { DOCK_EVENT, DockEvent, dockEventBus } from "../events/dockEventBus.ts";
 import { subscribeInfoOverlay } from "../events/infoOverlayBus.ts";
 import { getIntakeStatus, toggleIntakeStatus } from "../services/intakeService.ts";
@@ -694,21 +694,6 @@ export const createApiRouter = (requestService: RequestService, settings: Server
   api.post("/system/update/yt-dlp", async () => {
     try {
       const version = await updateYtDlpBinary(settings);
-      const info = await getSystemInfo(settings);
-      return new Response(JSON.stringify({ ok: true, version, info }), {
-        headers: { "content-type": "application/json" },
-      });
-    } catch (err) {
-      return new Response(
-        JSON.stringify({ ok: false, message: err instanceof Error ? err.message : String(err) }),
-        { status: 500, headers: { "content-type": "application/json" } },
-      );
-    }
-  });
-
-  api.post("/system/update/yt-dlp-ejs", async () => {
-    try {
-      const version = await updateYtDlpEjs();
       const info = await getSystemInfo(settings);
       return new Response(JSON.stringify({ ok: true, version, info }), {
         headers: { "content-type": "application/json" },
