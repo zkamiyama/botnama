@@ -16,6 +16,7 @@ type RequestRow = {
   updated_at: number;
   comment_id: string | null;
   platform: string;
+  user_id: string | null;
   user_name: string | null;
   original_message: string;
   url: string;
@@ -73,6 +74,7 @@ const rowToRequest = (row: RequestRow): RequestItem => ({
   updatedAt: row.updated_at,
   commentId: row.comment_id,
   platform: row.platform as Platform,
+  userId: row.user_id,
   userName: row.user_name,
   originalMessage: row.original_message,
   url: row.url,
@@ -111,6 +113,7 @@ export interface CreateRequestInput {
   createdAt: number;
   commentId: string | null;
   platform: string;
+  userId: string | null;
   userName: string | null;
   originalMessage: string;
   url: string;
@@ -137,6 +140,32 @@ export const insertComment = (input: {
   emitDockEvent(DOCK_EVENT.COMMENTS);
 };
 
+const updateCommentRequestState = (
+  commentId: string,
+  state: {
+    requestId?: string | null;
+    requestStatus?: RequestStatus | null;
+    requestStatusReason?: string | null;
+  },
+) => {
+  const db = getDb();
+  const patch: Record<string, SqliteValue | undefined> = {};
+  if (state.requestId !== undefined) patch.request_id = state.requestId;
+  if (state.requestStatus !== undefined) patch.request_status = state.requestStatus;
+  if (state.requestStatusReason !== undefined) {
+    patch.request_status_reason = state.requestStatusReason;
+  }
+  const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
+  if (entries.length === 0) return;
+  const columns = entries.map(([key]) => `${key} = :${key}`).join(", ");
+  const bind: Record<string, SqliteValue> = {};
+  for (const [key, value] of entries) {
+    bind[key] = value ?? null;
+  }
+  db.prepare(`UPDATE comments SET ${columns} WHERE id = :id`).run({ ...bind, id: commentId });
+  emitDockEvent(DOCK_EVENT.COMMENTS);
+};
+
 const getNextQueuePosition = () => 1;
 
 export const insertRequest = (input: CreateRequestInput): RequestItem => {
@@ -145,7 +174,7 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
   const stmt = db.prepare(`
     INSERT INTO requests (
       id, created_at, updated_at,
-      comment_id, platform, user_name, original_message,
+        comment_id, platform, user_id, user_name, original_message,
       url, parsed_site, parsed_video_id, parsed_normalized_url,
       title, duration_sec, thumbnail_url,
       uploaded_at, view_count, like_count, dislike_count, comment_count,
@@ -155,7 +184,7 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
       file_name, cache_file_path, cache_file_size, meta_refreshed_at
     ) VALUES (
       :id, :createdAt, :updatedAt,
-      :commentId, :platform, :userName, :originalMessage,
+        :commentId, :platform, :userId, :userName, :originalMessage,
       :url, :parsedSite, :parsedVideoId, :parsedNormalizedUrl,
       :title, :durationSec, :thumbnailUrl,
       :uploadedAt, :viewCount, :likeCount, :dislikeCount, :commentCount,
@@ -171,6 +200,7 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
     updatedAt: input.createdAt,
     commentId: input.commentId,
     platform: input.platform,
+    userId: input.userId,
     userName: input.userName,
     originalMessage: input.originalMessage,
     url: input.url,
@@ -199,6 +229,13 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
     cacheFileSize: null,
     metaRefreshedAt: null,
   });
+  if (input.commentId) {
+    updateCommentRequestState(input.commentId, {
+      requestId: input.id,
+      requestStatus: input.status,
+      requestStatusReason: null,
+    });
+  }
   const row = getById(input.id);
   if (!row) {
     throw new Error("failed to fetch newly inserted request");
@@ -250,6 +287,13 @@ export const updateStatus = (id: string, status: RequestStatus, reason?: string 
     queue_position: status === "DONE" ? null : undefined,
   });
   const detail = reason ?? updated.statusReason ?? undefined;
+  if (updated.commentId) {
+    updateCommentRequestState(updated.commentId, {
+      requestId: updated.id,
+      requestStatus: status,
+      requestStatusReason: detail ?? null,
+    });
+  }
   if (status === "READY" && reason !== "STOP" && (!before || before.status !== "READY")) {
     emitInfoOverlay({
       level: "info",
@@ -263,21 +307,24 @@ export const updateStatus = (id: string, status: RequestStatus, reason?: string 
     });
   }
   if (status === "REJECTED" || status === "FAILED") {
-    const isMetadataFailure = detail === "metadata fetch failed";
-    const messageKey = isMetadataFailure ? "request_rejected_full" : "body_with_reason";
-    const params = isMetadataFailure
-      ? { url: updated.url }
-      : { reason: detail ?? (status === "FAILED" ? "error" : "rejected"), url: updated.url };
+    const titleKey = status === "FAILED" ? "request_failed_title" : "request_rejected_title";
+    const normalizedReason = typeof detail === "string" ? detail.trim() : "";
+    const hasReason = normalizedReason.length > 0;
     emitInfoOverlay({
       level: status === "FAILED" ? "error" : "warn",
-      titleKey: "request_rejected_title",
-      messageKey,
-      params,
+      titleKey,
+      messageKey: hasReason ? "body_with_reason" : "request_rejected_full",
+      params: hasReason
+        ? { reason: normalizedReason, url: updated.url }
+        : { url: updated.url },
       requestId: updated.id,
       userName: updated.userName,
       url: updated.url,
       scope: "status",
     });
+  }
+  if (status === "REJECTED" || status === "FAILED") {
+    deleteRequest(updated.id, { preserveCommentState: true });
   }
   return updated;
 };
@@ -343,17 +390,57 @@ export const getCurrentPlaying = (): RequestItem | null => {
   return row ? rowToRequest(row) : null;
 };
 
-export const deleteRequest = (id: string) => {
+export const deleteRequest = (id: string, options?: { preserveCommentState?: boolean }) => {
   const db = getDb();
+  let commentId: string | null = null;
+  if (!options?.preserveCommentState) {
+    const existing = getById(id);
+    commentId = existing?.commentId ?? null;
+  }
   const stmt = db.prepare(`DELETE FROM requests WHERE id = :id`);
   stmt.run({ id });
+  if (commentId) {
+    updateCommentRequestState(commentId, {
+      requestId: null,
+      requestStatus: null,
+      requestStatusReason: null,
+    });
+  }
   emitDockEvent(DOCK_EVENT.REQUESTS);
 };
 
 export const deleteAllRequests = () => {
   const db = getDb();
   db.exec(`DELETE FROM requests`);
+  db.exec(`
+    UPDATE comments
+    SET request_id = NULL,
+        request_status = NULL,
+        request_status_reason = NULL
+    WHERE request_status IS NULL OR request_status NOT IN ('FAILED','REJECTED')
+  `);
   emitDockEvent(DOCK_EVENT.REQUESTS);
+  emitDockEvent(DOCK_EVENT.COMMENTS);
+};
+
+export const countActiveRequestsByOwner = (ownerId: string): number => {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT COUNT(*) as total
+    FROM requests
+    WHERE status NOT IN ('DONE','FAILED','REJECTED')
+      AND (
+        user_id = :ownerId
+        OR (user_id IS NULL AND user_name = :ownerId)
+      )
+  `).get({ ownerId }) as { total: number } | undefined;
+  return row?.total ?? 0;
+};
+
+export const deleteAllComments = () => {
+  const db = getDb();
+  db.exec(`DELETE FROM comments`);
+  emitDockEvent(DOCK_EVENT.COMMENTS);
 };
 
 export const fetchQueueSummary = (): QueueSummary => {
@@ -463,10 +550,10 @@ export const updateDownloadMetadata = (
   const patch: Record<string, SqliteValue | undefined> = {};
   if (metadata.title !== undefined) patch.title = metadata.title;
   if (metadata.durationSec !== undefined) patch.duration_sec = metadata.durationSec;
-   if (metadata.uploadedAt !== undefined) patch.uploaded_at = metadata.uploadedAt;
-   if (metadata.viewCount !== undefined) patch.view_count = metadata.viewCount;
-   if (metadata.likeCount !== undefined) patch.like_count = metadata.likeCount;
-   if (metadata.dislikeCount !== undefined) patch.dislike_count = metadata.dislikeCount;
+  if (metadata.uploadedAt !== undefined) patch.uploaded_at = metadata.uploadedAt;
+  if (metadata.viewCount !== undefined) patch.view_count = metadata.viewCount;
+  if (metadata.likeCount !== undefined) patch.like_count = metadata.likeCount;
+  if (metadata.dislikeCount !== undefined) patch.dislike_count = metadata.dislikeCount;
   if (metadata.commentCount !== undefined) patch.comment_count = metadata.commentCount;
   if (metadata.mylistCount !== undefined) patch.mylist_count = metadata.mylistCount;
   if (metadata.favoriteCount !== undefined) patch.favorite_count = metadata.favoriteCount;
@@ -495,12 +582,60 @@ export const listRecentComments = (limit: number): RawCommentEvent[] => {
   const db = getDb();
   const safeLimit = Math.max(1, Math.min(limit, 200));
   const stmt = db.prepare(`
-    SELECT id, platform, room_id, user_id, user_name, message, timestamp
-    FROM comments
-    ORDER BY timestamp DESC
+    SELECT c.id, c.platform, c.room_id, c.user_id, c.user_name, c.message, c.timestamp,
+      c.request_id as comment_request_id,
+      c.request_status as comment_request_status,
+      c.request_status_reason as comment_request_status_reason,
+      req_lookup.request_id as fallback_request_id,
+      req_detail.status as fallback_request_status,
+      req_detail.status_reason as fallback_request_status_reason
+    FROM comments c
+    LEFT JOIN (
+      SELECT comment_id, MIN(id) as request_id
+      FROM requests
+      WHERE comment_id IS NOT NULL
+      GROUP BY comment_id
+    ) req_lookup ON req_lookup.comment_id = c.id
+    LEFT JOIN requests req_detail ON req_detail.id = req_lookup.request_id
+    ORDER BY c.timestamp DESC
     LIMIT :limit
   `);
   const rows = stmt.all({ limit: safeLimit }) as Array<{
+    id: string;
+    platform: string;
+    room_id: string | null;
+    user_id: string | null;
+    user_name: string | null;
+    message: string;
+    timestamp: number;
+    comment_request_id: string | null;
+    comment_request_status: RequestStatus | null;
+    comment_request_status_reason: string | null;
+    fallback_request_id: string | null;
+    fallback_request_status: RequestStatus | null;
+    fallback_request_status_reason: string | null;
+  }>;
+  return rows.map((row) => ({
+    id: row.id,
+    platform: row.platform as Platform,
+    roomId: row.room_id,
+    userId: row.user_id,
+    userName: row.user_name,
+    message: row.message,
+    timestamp: row.timestamp,
+    requestId: row.comment_request_id ?? row.fallback_request_id ?? null,
+    requestStatus: row.comment_request_status ?? row.fallback_request_status ?? null,
+    requestStatusReason: row.comment_request_status_reason ?? row.fallback_request_status_reason ?? null,
+  }));
+};
+
+export const fetchAllCommentsForExport = (): RawCommentEvent[] => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT id, platform, room_id, user_id, user_name, message, timestamp
+    FROM comments
+    ORDER BY timestamp DESC
+  `).all() as Array<{
     id: string;
     platform: string;
     room_id: string | null;
@@ -517,5 +652,8 @@ export const listRecentComments = (limit: number): RawCommentEvent[] => {
     userName: row.user_name,
     message: row.message,
     timestamp: row.timestamp,
+    requestId: null,
+    requestStatus: null,
+    requestStatusReason: null,
   }));
 };

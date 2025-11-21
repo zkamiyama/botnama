@@ -49,7 +49,8 @@ export const fetchVideoMetadata = async (
   }
   try {
     const text = new TextDecoder().decode(output.stdout);
-    const data = JSON.parse(text);
+    const data = parseFirstJsonObject(text);
+    if (!data) throw new Error("metadata json not found");
     const uploadDateStr = typeof data.upload_date === "string" ? data.upload_date : null;
     const uploadDate = uploadDateStr && /^\d{8}$/.test(uploadDateStr)
       ? Date.UTC(
@@ -77,4 +78,45 @@ export const fetchVideoMetadata = async (
     console.error("[metadata] parse failed", err);
     return null;
   }
+};
+
+const parseFirstJsonObject = (raw: string) => {
+  if (!raw) return null;
+  const trimmed = raw.trimStart();
+  const start = trimmed.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        const slice = trimmed.slice(start, i + 1);
+        try {
+          return JSON.parse(slice);
+        } catch (_err) {
+          break;
+        }
+      }
+    }
+  }
+  return null;
 };

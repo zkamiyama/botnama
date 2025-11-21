@@ -6,5 +6,20 @@
   "pollEnabled": true,
   "pollIntervalSec": 90,
   "pollWindowSec": 30,
-  "pollStopDelaySec": 3
+  "pollStopDelaySec": 3,
+  "allowYoutube": true,
+  "allowNicovideo": true,
+  "allowBilibili": true,
+  "customSites": [
+    {
+      "id": "0a31d612-8ff1-41ce-a638-134272c038bf",
+      "pattern": "https://www.dailymotion.com"
+    }
+  ],
+  "concurrentLimitEnabled": false,
+  "concurrentLimitCount": 5,
+  "ngUserBlockingEnabled": true,
+  "ngUserIds": [
+    "UCfgNkXogvv-Odal644qcwDA"
+  ]
 }

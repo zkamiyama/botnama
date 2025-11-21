@@ -239,9 +239,16 @@ export class DownloadWorker {
         kind = "video";
       } else if (
         lower.includes(".faudio") || lower.includes(".audio") ||
-        lower.endsWith(".m4a") || lower.endsWith(".aac") || lower.endsWith(".mp3")
+        lower.endsWith(".m4a") || lower.endsWith(".aac") || lower.endsWith(".mp3") ||
+        lower.endsWith(".opus") || lower.endsWith(".weba") || lower.endsWith(".ogg") ||
+        lower.endsWith(".wav") || lower.endsWith(".flac")
       ) {
         kind = "audio";
+      } else if (
+        lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") ||
+        lower.endsWith(".mov")
+      ) {
+        kind = "video";
       }
       artifacts.push({ name: entry.name, absolutePath: join(cacheDir, entry.name), kind });
     }
@@ -290,37 +297,63 @@ export class DownloadWorker {
 
   #buildManifestEntries(artifacts: DownloadArtifact[]) {
     const containers = artifacts.filter((item) => item.kind === "container");
-    if (containers.length > 0) {
-      const preferred = this.#selectPreferredArtifact(containers, [
+    const videos = artifacts.filter((item) => item.kind === "video");
+    const audios = artifacts.filter((item) => item.kind === "audio");
+    const entries: MediaManifestEntry[] = [];
+
+    const hasExplicitTracks = videos.length > 0 || audios.length > 0;
+    if (!hasExplicitTracks) {
+      const preferredContainer = this.#selectPreferredArtifact(containers, [
         ".mp4",
         ".webm",
         ".mkv",
         ".mov",
       ]);
-      if (!preferred) return [];
+      if (!preferredContainer) return [];
       return [{
         kind: "container",
-        file: preferred.name,
-        mimeType: this.#guessMime(preferred.name, "container"),
+        file: preferredContainer.name,
+        mimeType: this.#guessMime(preferredContainer.name, "container"),
       }];
     }
-    const entries: MediaManifestEntry[] = [];
-    const videos = artifacts.filter((item) => item.kind === "video");
-    const audios = artifacts.filter((item) => item.kind === "audio");
-    const preferredVideo = this.#selectPreferredArtifact(videos, [".mp4", ".webm"]);
-    const preferredAudio = this.#selectPreferredArtifact(audios, [
-      ".m4a",
-      ".mp4",
-      ".webm",
-      ".aac",
-      ".mp3",
-    ]);
+
+    const preferredVideo = videos.length > 0
+      ? this.#selectPreferredArtifact(videos, [".mp4", ".webm", ".mkv", ".mov"])
+      : null;
+    const preferredAudio = audios.length > 0
+      ? this.#selectPreferredArtifact(audios, [
+        ".m4a",
+        ".mp4",
+        ".webm",
+        ".aac",
+        ".mp3",
+        ".opus",
+        ".ogg",
+        ".weba",
+        ".flac",
+      ])
+      : null;
+
     if (preferredVideo) {
       entries.push({
         kind: "video",
         file: preferredVideo.name,
         mimeType: this.#guessMime(preferredVideo.name, "video"),
       });
+    } else {
+      const fallback = this.#selectPreferredArtifact(containers, [
+        ".mp4",
+        ".webm",
+        ".mkv",
+        ".mov",
+      ]);
+      if (fallback) {
+        entries.push({
+          kind: "video",
+          file: fallback.name,
+          mimeType: this.#guessMime(fallback.name, "container"),
+        });
+      }
     }
     if (preferredAudio) {
       entries.push({
@@ -328,6 +361,21 @@ export class DownloadWorker {
         file: preferredAudio.name,
         mimeType: this.#guessMime(preferredAudio.name, "audio"),
       });
+    }
+    if (entries.length === 0 && containers.length > 0) {
+      const fallback = this.#selectPreferredArtifact(containers, [
+        ".mp4",
+        ".webm",
+        ".mkv",
+        ".mov",
+      ]);
+      if (fallback) {
+        entries.push({
+          kind: "container",
+          file: fallback.name,
+          mimeType: this.#guessMime(fallback.name, "container"),
+        });
+      }
     }
     return entries;
   }

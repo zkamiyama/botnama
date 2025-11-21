@@ -12,6 +12,7 @@ import {
   updateRequestFields,
   updateStatus,
 } from "../repositories/requestsRepository.ts";
+import { insertPlaybackLog } from "../repositories/playbackLogsRepository.ts";
 import { ApiListResponse, QueueSummary, RequestItem, RequestStatus } from "../types.ts";
 import { OverlayHub } from "../websocket/overlayHub.ts";
 import { DOCK_EVENT, emitDockEvent } from "../events/dockEventBus.ts";
@@ -188,6 +189,12 @@ export class RequestService {
     this.#currentPlayingId = updated.id;
     emitDockEvent(DOCK_EVENT.REQUESTS);
     console.log(`[RequestService] overlay play signal sent for ${updated.id}`);
+    insertPlaybackLog({
+      requestId: updated.id,
+      title: updated.title,
+      url: updated.url,
+      playedAt: Date.now(),
+    });
     const playbackOverlayDurationMs = computePlaybackBandDurationMs(updated.durationSec ?? null);
     // 1) タイトル帯（上段）：再生開始ラベルは付けず、タイトルのみ
     const normalizedTitle = (updated.title ?? "").trim();

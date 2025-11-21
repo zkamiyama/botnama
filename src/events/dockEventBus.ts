@@ -1,4 +1,4 @@
-export type DockEvent = "requests" | "comments" | "system";
+export type DockEvent = "requests" | "comments" | "system" | "logs" | "rules";
 
 type Listener = (event: DockEvent) => void;
 
@@ -31,4 +31,6 @@ export const DOCK_EVENT = {
   REQUESTS: "requests",
   COMMENTS: "comments",
   SYSTEM: "system",
+  LOGS: "logs",
+  RULES: "rules",
 } as const satisfies Record<string, DockEvent>;

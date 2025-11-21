@@ -2,12 +2,28 @@ import { Hono } from "hono";
 import { handleDebugComment, ingestComment } from "../services/commentService.ts";
 import { RequestService } from "../services/requestService.ts";
 import { Platform, RequestStatus, ServerSettings } from "../types.ts";
-import { listRecentComments } from "../repositories/requestsRepository.ts";
+import {
+  deleteAllComments,
+  listRecentComments,
+  fetchAllCommentsForExport,
+} from "../repositories/requestsRepository.ts";
+import {
+  clearPlaybackLogs,
+  fetchAllPlaybackLogs,
+  listPlaybackLogs,
+} from "../repositories/playbackLogsRepository.ts";
 import { getSystemInfo, updateYtDlpBinary, updateYtDlpEjs } from "../services/systemService.ts";
 import { DOCK_EVENT, DockEvent, dockEventBus } from "../events/dockEventBus.ts";
 import { subscribeInfoOverlay } from "../events/infoOverlayBus.ts";
 import { getIntakeStatus, toggleIntakeStatus } from "../services/intakeService.ts";
-import { getRules, updateRules } from "../services/ruleService.ts";
+import {
+  addNgUserId,
+  clearNgUserIds,
+  getNgUserRule,
+  getRules,
+  removeNgUserId,
+  updateRules,
+} from "../services/ruleService.ts";
 import { emitInfoOverlay } from "../events/infoOverlayBus.ts";
 
 const REQUEST_STATUS_SET = new Set<RequestStatus>([
@@ -40,6 +56,25 @@ export const createApiRouter = (requestService: RequestService, settings: Server
     "SUSPEND",
   ];
   const recentCommentLimit = 30;
+  const recentLogLimit = 200;
+  const padNumber = (value: number) => value.toString().padStart(2, "0");
+  const formatCsvTimestamp = (ms: number) => {
+    const date = new Date(ms);
+    const year = date.getFullYear();
+    const month = padNumber(date.getMonth() + 1);
+    const day = padNumber(date.getDate());
+    const hour = padNumber(date.getHours());
+    const minute = padNumber(date.getMinutes());
+    const second = padNumber(date.getSeconds());
+    return `${year}/${month}/${day}/${hour}:${minute}:${second}`;
+  };
+  const escapeCsv = (value: string | number | null | undefined) => {
+    const text = value === undefined || value === null ? "" : String(value);
+    if (text.includes(",") || text.includes("\"") || text.includes("\n") || text.includes("\r")) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
 
   const isPlainObject = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === "object" && !Array.isArray(value);
@@ -151,6 +186,13 @@ export const createApiRouter = (requestService: RequestService, settings: Server
       const items = listRecentComments(recentCommentLimit);
       return { event, payload: { items } };
     }
+    if (event === DOCK_EVENT.LOGS) {
+      const items = listPlaybackLogs(recentLogLimit);
+      return { event, payload: { items } };
+    }
+    if (event === DOCK_EVENT.RULES) {
+      return { event, payload: { rules: getRules() } };
+    }
     return {
       event: DOCK_EVENT.REQUESTS,
       payload: {
@@ -224,7 +266,9 @@ export const createApiRouter = (requestService: RequestService, settings: Server
         const heartbeat = setInterval(() => write("heartbeat", { now: Date.now() }), 15000);
         send(DOCK_EVENT.REQUESTS);
         send(DOCK_EVENT.COMMENTS);
+        send(DOCK_EVENT.LOGS);
         send(DOCK_EVENT.SYSTEM);
+        send(DOCK_EVENT.RULES);
 
         const close = () => {
           if (closed) return;
@@ -264,7 +308,9 @@ export const createApiRouter = (requestService: RequestService, settings: Server
           const chunk = `data: ${JSON.stringify(payload)}\n\n`;
           controller.enqueue(encoder.encode(chunk));
         };
-        const unsubscribe = subscribeInfoOverlay((event) => write({ event: "notify", payload: event }));
+        const unsubscribe = subscribeInfoOverlay((event) =>
+          write({ event: "notify", payload: event })
+        );
         const localeSink = (locale: string) => write({ event: "locale", locale });
         localeSubscribers.add(localeSink);
         const heartbeat = setInterval(() => write({ event: "heartbeat", now: Date.now() }), 15000);
@@ -366,15 +412,76 @@ export const createApiRouter = (requestService: RequestService, settings: Server
     const body = await c.req.json().catch(() => ({}));
     const updated = updateRules({
       maxDurationEnabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
-      maxDurationMinutes: typeof body.maxDurationMinutes === "number" ? body.maxDurationMinutes : undefined,
-      disallowDuplicates: typeof body.disallowDuplicates === "boolean" ? body.disallowDuplicates : undefined,
+      maxDurationMinutes: typeof body.maxDurationMinutes === "number"
+        ? body.maxDurationMinutes
+        : undefined,
+      disallowDuplicates: typeof body.disallowDuplicates === "boolean"
+        ? body.disallowDuplicates
+        : undefined,
       cooldownMinutes: typeof body.cooldownMinutes === "number" ? body.cooldownMinutes : undefined,
       pollEnabled: typeof body.pollEnabled === "boolean" ? body.pollEnabled : undefined,
       pollIntervalSec: typeof body.pollIntervalSec === "number" ? body.pollIntervalSec : undefined,
       pollWindowSec: typeof body.pollWindowSec === "number" ? body.pollWindowSec : undefined,
-      pollStopDelaySec: typeof body.pollStopDelaySec === "number" ? body.pollStopDelaySec : undefined,
+      pollStopDelaySec: typeof body.pollStopDelaySec === "number"
+        ? body.pollStopDelaySec
+        : undefined,
+      allowYoutube: typeof body.allowYoutube === "boolean" ? body.allowYoutube : undefined,
+      allowNicovideo: typeof body.allowNicovideo === "boolean" ? body.allowNicovideo : undefined,
+      allowBilibili: typeof body.allowBilibili === "boolean" ? body.allowBilibili : undefined,
+      customSites: Array.isArray(body.customSites) ? body.customSites : undefined,
+      concurrentLimitEnabled: typeof body.concurrentLimitEnabled === "boolean"
+        ? body.concurrentLimitEnabled
+        : undefined,
+      concurrentLimitCount: typeof body.concurrentLimitCount === "number"
+        ? body.concurrentLimitCount
+        : undefined,
+      ngUserBlockingEnabled: typeof body.ngUserBlockingEnabled === "boolean"
+        ? body.ngUserBlockingEnabled
+        : undefined,
+      ngUserIds: Array.isArray(body.ngUserIds) ? body.ngUserIds : undefined,
     });
     return new Response(JSON.stringify({ ok: true, rules: updated }), {
+      headers: { "content-type": "application/json" },
+    });
+  });
+
+  api.get("/rules/ng-users", () => {
+    return new Response(JSON.stringify({ ok: true, rule: getNgUserRule() }), {
+      headers: { "content-type": "application/json" },
+    });
+  });
+
+  api.post("/rules/ng-users", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const value = typeof body.userId === "string" ? body.userId.trim() : "";
+    if (!value) {
+      return c.json({ ok: false, message: "userId is required" }, 400);
+    }
+    if (body.enable === true) {
+      updateRules({ ngUserBlockingEnabled: true });
+    }
+    const rule = addNgUserId(value);
+    return c.json({ ok: true, rule });
+  });
+
+  api.delete("/rules/ng-users/:userId", (c) => {
+    const raw = c.req.param("userId") ?? "";
+    let decoded = raw;
+    try {
+      decoded = decodeURIComponent(raw);
+    } catch (_err) {
+      // fallback to raw string
+    }
+    if (!decoded) {
+      return c.json({ ok: false, message: "userId is required" }, 400);
+    }
+    const rule = removeNgUserId(decoded);
+    return c.json({ ok: true, rule });
+  });
+
+  api.post("/rules/ng-users/clear", () => {
+    const rule = clearNgUserIds();
+    return new Response(JSON.stringify({ ok: true, rule }), {
       headers: { "content-type": "application/json" },
     });
   });
@@ -522,6 +629,61 @@ export const createApiRouter = (requestService: RequestService, settings: Server
     const limit = limitParam ? Number(limitParam) : 50;
     const items = listRecentComments(Number.isNaN(limit) ? 50 : limit);
     return c.json({ items });
+  });
+
+  api.post("/comments/clear", (c) => {
+    deleteAllComments();
+    return c.json({ ok: true });
+  });
+
+  api.get("/comments/export", () => {
+    const rows = fetchAllCommentsForExport();
+    const lines = ["timestamp,user,message"];
+    for (const row of rows) {
+      lines.push([
+        escapeCsv(formatCsvTimestamp(row.timestamp)),
+        escapeCsv(row.userName ?? row.userId ?? ""),
+        escapeCsv(row.message),
+      ].join(","));
+    }
+    const payload = lines.join("\r\n");
+    return new Response(payload, {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": "attachment; filename=comments.csv",
+      },
+    });
+  });
+
+  api.get("/logs", (c) => {
+    const limitParam = c.req.query("limit");
+    const limit = limitParam ? Number(limitParam) : recentLogLimit;
+    const items = listPlaybackLogs(Number.isNaN(limit) ? recentLogLimit : limit);
+    return c.json({ items });
+  });
+
+  api.post("/logs/clear", (c) => {
+    clearPlaybackLogs();
+    return c.json({ ok: true });
+  });
+
+  api.get("/logs/export", () => {
+    const rows = fetchAllPlaybackLogs();
+    const lines = ["played_at,title,url"];
+    for (const row of rows) {
+      lines.push([
+        escapeCsv(formatCsvTimestamp(row.playedAt)),
+        escapeCsv(row.title ?? ""),
+        escapeCsv(row.url),
+      ].join(","));
+    }
+    const payload = lines.join("\r\n");
+    return new Response(payload, {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": "attachment; filename=playback_logs.csv",
+      },
+    });
   });
 
   api.get("/system/info", async () => {

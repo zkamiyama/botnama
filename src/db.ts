@@ -17,7 +17,10 @@ const createSchema = (db: DatabaseSync) => {
       user_id TEXT,
       user_name TEXT,
       message TEXT NOT NULL,
-      timestamp INTEGER NOT NULL
+      timestamp INTEGER NOT NULL,
+      request_id TEXT,
+      request_status TEXT,
+      request_status_reason TEXT
     );
 
     CREATE TABLE IF NOT EXISTS requests (
@@ -26,6 +29,7 @@ const createSchema = (db: DatabaseSync) => {
       updated_at INTEGER NOT NULL,
       comment_id TEXT,
       platform TEXT NOT NULL,
+      user_id TEXT,
       user_name TEXT,
       original_message TEXT NOT NULL,
       url TEXT NOT NULL,
@@ -56,6 +60,17 @@ const createSchema = (db: DatabaseSync) => {
       FOREIGN KEY(comment_id) REFERENCES comments(id)
     );
 
+    CREATE TABLE IF NOT EXISTS playback_logs (
+      id TEXT PRIMARY KEY,
+      request_id TEXT,
+      title TEXT,
+      url TEXT NOT NULL,
+      played_at INTEGER NOT NULL,
+      FOREIGN KEY(request_id) REFERENCES requests(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_playback_logs_played_at ON playback_logs(played_at DESC);
+
     CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
     CREATE INDEX IF NOT EXISTS idx_requests_queue ON requests(queue_position);
 
@@ -78,6 +93,10 @@ const createSchema = (db: DatabaseSync) => {
   ensureColumn("requests", "danmaku_count", "INTEGER");
   ensureColumn("requests", "meta_refreshed_at", "INTEGER");
   ensureColumn("requests", "uploader", "TEXT");
+  ensureColumn("requests", "user_id", "TEXT");
+  ensureColumn("comments", "request_id", "TEXT");
+  ensureColumn("comments", "request_status", "TEXT");
+  ensureColumn("comments", "request_status_reason", "TEXT");
 };
 
 export const getDb = () => {

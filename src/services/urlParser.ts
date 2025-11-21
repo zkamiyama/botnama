@@ -12,6 +12,7 @@ const BILIBILI_BVID_INLINE_REGEX = /\b(BV[0-9A-Za-z]{10})\b/i;
 const BILIBILI_AVID_INLINE_REGEX = /\b(av\d+)\b/i;
 const BILIBILI_BVID_EXACT_REGEX = /^BV[0-9A-Za-z]{10}$/i;
 const BILIBILI_AVID_EXACT_REGEX = /^av\d+$/i;
+const BILIBILI_BVID_QUERY_REGEX = /bvid=(BV[0-9A-Za-z]{10})/i;
 
 const matchesDomain = (hostname: string, domain: string) =>
   hostname === domain || hostname.endsWith(`.${domain}`);
@@ -62,7 +63,7 @@ const normalizeBilibiliVideoId = (value: string | null) => {
   const trimmed = value.trim();
   if (!trimmed) return null;
   if (BILIBILI_BVID_EXACT_REGEX.test(trimmed)) {
-    return `BV${trimmed.slice(2)}`;
+    return `BV${trimmed.slice(2).toUpperCase()}`;
   }
   if (BILIBILI_AVID_EXACT_REGEX.test(trimmed)) {
     return `av${trimmed.slice(2)}`;
@@ -87,6 +88,10 @@ const findBilibiliVideoId = (text: string | null) => {
   const bvMatch = text.match(BILIBILI_BVID_INLINE_REGEX);
   if (bvMatch && bvMatch[1]) {
     return bvMatch[1];
+  }
+  const bvidQueryMatch = text.match(BILIBILI_BVID_QUERY_REGEX);
+  if (bvidQueryMatch && bvidQueryMatch[1]) {
+    return bvidQueryMatch[1];
   }
   const avMatch = text.match(BILIBILI_AVID_INLINE_REGEX);
   if (avMatch && avMatch[1]) {

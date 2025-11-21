@@ -137,8 +137,9 @@ const ensureBinary = async (
 };
 
 const ensureYtDlpEjs = async (force = false) => {
-  const versionFile = join(YT_DLP_EJS_INSTALL_ROOT, "yt_dlp_ejs", "_version.py");
-  if (!force && await fileExists(versionFile)) {
+  const versionMarker = join(YT_DLP_EJS_INSTALL_ROOT, "VERSION");
+  const legacyVersionFile = join(YT_DLP_EJS_INSTALL_ROOT, "yt_dlp_ejs", "_version.py");
+  if (!force && (await fileExists(versionMarker) || await fileExists(legacyVersionFile))) {
     return;
   }
 
@@ -149,6 +150,14 @@ const ensureYtDlpEjs = async (force = false) => {
   const wheelAsset = release.assets.find((asset) => asset.name.endsWith(".whl"));
   if (!wheelAsset) {
     throw new Error("yt-dlp-ejs wheel asset not found in latest release");
+  }
+
+  let detectedVersion: string | null = null;
+  const wheelNameMatch = wheelAsset.name.match(/yt_dlp_ejs-([^-]+)-/i);
+  if (wheelNameMatch) {
+    detectedVersion = wheelNameMatch[1];
+  } else if (release.tag_name) {
+    detectedVersion = release.tag_name.replace(/^v/i, "");
   }
 
   const wheelBytes = await fetchBinary(wheelAsset.browser_download_url, {
@@ -165,6 +174,12 @@ const ensureYtDlpEjs = async (force = false) => {
   }
 
   console.log(`[bootstrap] yt-dlp-ejs ${release.tag_name ?? "latest"} ready`);
+
+  if (detectedVersion) {
+    await Deno.writeTextFile(versionMarker, `${detectedVersion}\n`).catch((err: unknown) => {
+      console.warn("[bootstrap] failed to record yt-dlp-ejs version", err);
+    });
+  }
 };
 
 const stripArchiveExtension = (name: string) =>

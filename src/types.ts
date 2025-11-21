@@ -35,6 +35,9 @@ export interface RawCommentEvent {
   userName: string | null;
   message: string;
   timestamp: number;
+  requestId: string | null;
+  requestStatus: RequestStatus | null;
+  requestStatusReason: string | null;
 }
 
 export interface ParsedUrl {
@@ -50,6 +53,7 @@ export interface RequestItem {
   updatedAt: number;
   commentId: string | null;
   platform: Platform;
+  userId: string | null;
   userName: string | null;
   originalMessage: string;
   url: string;
@@ -74,6 +78,14 @@ export interface RequestItem {
   playStartedAt: number | null;
   playEndedAt: number | null;
   cacheFileSize: number | null;
+}
+
+export interface PlaybackLogItem {
+  id: string;
+  requestId: string | null;
+  title: string | null;
+  url: string;
+  playedAt: number;
 }
 
 export interface QueueSummary {
