@@ -99,18 +99,15 @@ const normalizeCustomSites = (value: unknown): CustomSiteRule[] => {
   const result: CustomSiteRule[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
-    const pattern = typeof (item as { pattern?: unknown }).pattern === "string"
-      ? (item as { pattern?: string }).pattern.trim()
-      : "";
+    const rawPattern = (item as { pattern?: unknown }).pattern;
+    const pattern = typeof rawPattern === "string" ? rawPattern.trim() : "";
     if (!pattern) continue;
     const regex = buildRegex(pattern);
     if (!regex) continue;
-    const idValue = typeof (item as { id?: unknown }).id === "string"
-      ? (item as { id?: string }).id.trim()
-      : "";
-    const aliasValue = typeof (item as { alias?: unknown }).alias === "string"
-      ? (item as { alias?: string }).alias.trim().toLowerCase()
-      : "";
+    const rawID = (item as { id?: unknown }).id;
+    const idValue = typeof rawID === "string" ? rawID.trim() : "";
+    const rawAlias = (item as { alias?: unknown }).alias;
+    const aliasValue = typeof rawAlias === "string" ? rawAlias.trim().toLowerCase() : "";
     const alias = aliasValue && /^[a-z0-9_-]{1,8}$/.test(aliasValue) ? aliasValue : undefined;
     result.push({
       id: idValue || uuid(),

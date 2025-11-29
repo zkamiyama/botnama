@@ -15,7 +15,8 @@ const GITHUB_BINARY_HEADERS = {
 
 const FFMPEG_RELEASE_API = "https://api.github.com/repos/yt-dlp/FFmpeg-Builds/releases/latest";
 
-const YT_DLP_SOURCES: Record<Deno.OS, string | undefined> = {
+type KnownOS = "windows" | "linux" | "darwin";
+const YT_DLP_SOURCES: Record<KnownOS, string | undefined> = {
   windows: "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe",
   linux: "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp",
   darwin: "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp",
@@ -123,7 +124,7 @@ const containsAll = (...needles: string[]): AssetMatcher => {
   };
 };
 
-const FFMPEG_ASSET_MATCHERS: Record<Deno.OS, Record<string, AssetMatcher[]>> = {
+const FFMPEG_ASSET_MATCHERS: Record<string, Record<string, AssetMatcher[]>> = {
   windows: {
     x86_64: [
       containsAll("win64", "gpl.zip"),
@@ -156,7 +157,7 @@ const FFMPEG_ASSET_MATCHERS: Record<Deno.OS, Record<string, AssetMatcher[]>> = {
 
 const ensureBinary = async (
   path: string | null,
-  sources: Record<Deno.OS, string | undefined>,
+  sources: Record<string, string | undefined>,
   label: string,
   force = false,
 ) => {
@@ -166,7 +167,7 @@ const ensureBinary = async (
     return;
   }
   ensureDirSync(dirname(absolutePath));
-  const url = sources[Deno.build.os];
+  const url = sources[Deno.build.os as string];
   if (!url) {
     console.warn(`[bootstrap] No download source defined for ${label} on ${Deno.build.os}`);
     return;
@@ -182,7 +183,7 @@ const stripArchiveExtension = (name: string) =>
 const extractBinaryFromZip = async (archive: Uint8Array, relativePath: string) => {
   const zip = await JSZip.loadAsync(archive);
   const normalized = relativePath.replace(/\\/g, "/");
-  let entry = zip.files[normalized];
+  let entry: JSZip.JSZipObject | undefined = zip.files[normalized];
   if (!entry) {
     entry = Object.values(zip.files).find((file) =>
       !file.dir && file.name.replace(/\\/g, "/").endsWith("/bin/ffmpeg")
@@ -226,9 +227,9 @@ const extractBinaryFromTarXz = async (archive: Uint8Array, relativePath: string)
 };
 
 const selectFfmpegAsset = (assets: GithubReleaseAsset[]): GithubReleaseAsset | null => {
-  const osMatchers = FFMPEG_ASSET_MATCHERS[Deno.build.os];
+  const osMatchers = FFMPEG_ASSET_MATCHERS[Deno.build.os as string];
   if (!osMatchers) return null;
-  const archMatchers = osMatchers[Deno.build.arch] ?? osMatchers.x86_64 ?? [];
+  const archMatchers = osMatchers[Deno.build.arch as string] ?? osMatchers.x86_64 ?? [];
   for (const matcher of archMatchers) {
     const asset = assets.find((candidate) => matcher(candidate.name));
     if (asset) return asset;

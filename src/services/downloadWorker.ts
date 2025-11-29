@@ -321,8 +321,8 @@ export class DownloadWorker {
         stdout: shouldInherit ? "inherit" : "piped",
         stderr: shouldInherit ? "inherit" : "piped",
       }).spawn();
-      const stdout = shouldInherit ? undefined : proc.stdout?.readable?.getReader();
-      const stderr = shouldInherit ? undefined : proc.stderr?.readable?.getReader();
+      const stdout = shouldInherit ? undefined : proc.stdout?.getReader();
+      const stderr = shouldInherit ? undefined : proc.stderr?.getReader();
       const lastActivity = { ts: Date.now() };
       let stderrText = "";
       let stdoutText = "";
@@ -331,19 +331,14 @@ export class DownloadWorker {
         const STALL_MS = 300_000;
         while (!shouldInherit) {
           await delay(10_000);  // Check every 10 seconds
-          if (proc.killed) return;
           const idle = Date.now() - lastActivity.ts;
           if (idle > STALL_MS) {
             console.warn(`[yt-dlp] no output for ${Math.floor(idle / 1000)}s; killing process`);
             try {
               proc.kill("SIGTERM");
               await delay(2000);
-              if (!proc.killed) {
-                proc.kill("SIGKILL");
-              }
-            } catch {
-              // Process already dead
-            }
+              try { proc.kill("SIGKILL"); } catch (_e) { /* ignore */ }
+            } catch { /* ignore */ }
             return;
           }
         }
@@ -401,7 +396,22 @@ export class DownloadWorker {
     };
 
     // 1st try: native HLS (yt-dlp's own), with cookies if available
-    let attempt = await runOnce(usedCookies, true);
+    // For YouTube, try without cookies first to avoid account ban risk, unless configured otherwise
+    const isYoutube = request.parsed?.site === "youtube";
+    const firstTryCookies = isYoutube ? false : usedCookies;
+
+    let attempt = await runOnce(firstTryCookies, true);
+
+    // If failed without cookies on YouTube, and we have cookies available, try with cookies
+    if (!attempt.status.success && isYoutube && usedCookies && !firstTryCookies) {
+      const errText = attempt.stderrText?.trim() ?? "";
+      console.warn(
+        `[worker] yt-dlp failed without cookies (err: ${errText.slice(-200)
+        }). Retrying with cookies.`,
+      );
+      attempt = await runOnce(true, true);
+    }
+
     if (!attempt.status.success) {
       const errText = attempt.stderrText?.trim() ?? "";
       const outText = attempt.stdoutText?.trim() ?? "";
@@ -527,7 +537,7 @@ export class DownloadWorker {
     if (artifacts.length === 0) {
       throw new Error("yt-dlp did not produce any media files");
     }
-    const entries = this.#buildManifestEntries(artifacts);
+    const entries = this.#buildManifestEntries(artifacts) as MediaManifestEntry[];
     // find thumbnail artifact (if any)
     const thumb = artifacts.find((a) => a.kind === "thumbnail");
     if (entries.length === 0) {

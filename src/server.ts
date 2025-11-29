@@ -230,7 +230,8 @@ async function tryReadPublicFile(relPath: string) {
 function servePublicFileResponse(bytes: Uint8Array | null, fileName: string | null) {
   if (!bytes) return new Response(null, { status: 404 });
   const headers = new Headers({ 'cache-control': 'no-cache', 'content-type': guessMediaMime(fileName ?? '') });
-  return new Response(bytes, { headers });
+  // Use a Blob for the response body for consistent BodyInit typing
+  return new Response((bytes as Uint8Array).buffer as ArrayBuffer, { headers });
 }
 
 app.get("/dock/", async (c) => servePublicFileResponse(await tryReadPublicFile("dock/index.html"), "dock/index.html"));

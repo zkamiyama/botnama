@@ -67,6 +67,15 @@ export class YouTubeService {
         this.tokenStore = tokenStore;
     }
 
+    // OAuth stubs for compatibility with legacy routes; the cookie-based service does not support OAuth.
+    public getAuthorizationUrl(_state: string): string {
+        throw new Error("OAuth login not supported for cookie-based YouTube service");
+    }
+
+    public async exchangeCodeForTokens(_code: string): Promise<void> {
+        throw new Error("OAuth exchange not supported for cookie-based YouTube service");
+    }
+
     // Allow setting a cached cookie header (used by server bootstrap) to avoid redundant extractions
     public setCachedCookieHeader(value: string | null) {
         if (!value) {
@@ -162,7 +171,7 @@ export class YouTubeService {
     // Get chat messages
     async getChatMessages(liveChatIdOrVideoId: string, pageToken?: string): Promise<{ items: YouTubeComment[], nextPageToken?: string }> {
         const cookies = await this.getYouTubeCookies(false, false);
-        let continuation = pageToken;
+        let continuation: string | null = pageToken ?? null;
         let apiKey: string | null = this.cachedChatApiKey;
         let context: any = this.cachedChatContext;
         let visitorData: string | null = this.cachedChatVisitor;

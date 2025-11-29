@@ -123,6 +123,8 @@ export interface CreateRequestInput {
   status: RequestStatus;
   queuePosition?: number | null;
   bucket?: string;
+  notifyComment?: boolean;
+  notifyTelop?: boolean;
 }
 
 export const insertComment = (input: {
@@ -207,6 +209,7 @@ export const insertRequest = (input: CreateRequestInput): RequestItem => {
       :fileName, :cacheFilePath, :cacheFileSize, :metaRefreshedAt
     )
   `);
+  // CreateRequestInput is defined in types.ts
   stmt.run({
     id: input.id,
     createdAt: input.createdAt,
@@ -574,6 +577,7 @@ export const updateDownloadMetadata = (
     fileName?: string | null;
     cacheFilePath?: string | null;
     cacheFileSize?: number | null;
+    thumbnailUrl?: string | null;
   },
 ) => {
   const patch: Record<string, SqliteValue | undefined> = {};

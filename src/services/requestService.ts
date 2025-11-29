@@ -127,6 +127,7 @@ export class RequestService {
     currentPlayingId: string | null;
     autoplayPaused: boolean;
     intakePaused: boolean;
+    shuffleMode: ShuffleMode;
     currentPlayback: {
       id: string;
       title: string | null;

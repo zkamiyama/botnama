@@ -228,6 +228,11 @@ export class NiconicoService {
         return comments;
     }
 
+    // Optional login method to support UI-based login flows; not required for cookie-based extraction.
+    public async login(_username: string, _password: string): Promise<void> {
+        throw new Error("Login endpoint not supported: use niconicoCookiesFrom settings or token store instead.");
+    }
+
     // Start streaming comments (exposed for other uses if needed, but getComments handles it now)
     async startCommentStream(
         liveId: string,
@@ -240,7 +245,7 @@ export class NiconicoService {
         console.warn("[Niconico] startCommentStream called directly. This creates a separate client instance.");
 
         const cookies = await this.getNiconicoCookies();
-        const match = cookies.match(/user_session=([^;]+)/);
+        const match = cookies?.match(/user_session=([^;]+)/);
         const userSessionValue = match ? match[1] : "";
 
         const { NDGRClient } = await import("./ndgrClient.ts");
@@ -253,7 +258,7 @@ export class NiconicoService {
         const cookies = await this.getNiconicoCookies();
 
         // Extract user_session for X-niconico-session header
-        const userSessionMatch = cookies.match(/user_session=([^;]+)/);
+        const userSessionMatch = cookies?.match(/user_session=([^;]+)/);
         const userSession = userSessionMatch ? userSessionMatch[1] : "";
 
         const url = `https://live2.nicovideo.jp/watch/${liveId}/operator_comment`;
@@ -264,7 +269,7 @@ export class NiconicoService {
             const response = await fetch(url, {
                 method: "PUT",
                 headers: {
-                    "Cookie": cookies,
+                    ...(cookies ? { "Cookie": cookies } : {}),
                     "Content-Type": "application/json",
                     "User-Agent": this.NICONICO_USER_AGENT,
                     "X-Frontend-Id": "134",
@@ -318,7 +323,7 @@ export class NiconicoService {
 
         try {
             // Extract user_session value from cookies
-            const userSessionMatch = cookies.match(/user_session=([^;]+)/);
+            const userSessionMatch = (cookies ?? "").match(/user_session=([^;]+)/);
             if (!userSessionMatch) {
                 console.warn("[Niconico] user_session cookie not found");
                 return null;
@@ -332,7 +337,7 @@ export class NiconicoService {
 
             const response = await fetch(apiUrl, {
                 headers: {
-                    "Cookie": cookies,
+                    ...(cookies ? { "Cookie": cookies } : {}),
                     "X-niconico-session": userSession,
                     "User-Agent": this.NICONICO_USER_AGENT,
                     "Accept": "application/json",
@@ -382,7 +387,7 @@ export class NiconicoService {
         try {
             const cookies = await this.getNiconicoCookies(forceRefresh, false);
             if (!cookies) return null;
-            const match = cookies.match(/user_session_([0-9]+)/);
+            const match = (cookies ?? "").match(/user_session_([0-9]+)/);
             if (match && match[1]) {
                 return `https://www.nicovideo.jp/user/${match[1]}`;
             }

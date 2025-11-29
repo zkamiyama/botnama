@@ -1,5 +1,4 @@
-*.md
-!USAGE.md
+AGENTS.md
 # Ignore local config files (do not commit local configs)
 # All files under `config/` are ignored to avoid committing secrets or local settings.
 config/**

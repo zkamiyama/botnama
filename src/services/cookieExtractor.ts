@@ -188,8 +188,8 @@ export async function getBrowserCookiesForDomains(browser: string, domains: stri
               }
             } finally { r.releaseLock(); }
           };
-          const outP = consume(child.stdout?.readable ?? null, true);
-          const errP = consume(child.stderr?.readable ?? null, false);
+          const outP = consume(child.stdout ?? null, true);
+          const errP = consume(child.stderr ?? null, false);
           const statusPromise = child.status;
           const timeoutMs = settings.ytDlpYouTubeTimeoutMs ?? 120000;
           const finished = await Promise.race([statusPromise, new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), timeoutMs))]);
@@ -291,8 +291,8 @@ export async function getBrowserCookiesForDomains(browser: string, domains: stri
                 }
               } finally { reader.releaseLock(); }
             };
-            const outP = consume(child.stdout?.readable ?? null, true);
-            const errP = consume(child.stderr?.readable ?? null, false);
+            const outP = consume(child.stdout ?? null, true);
+            const errP = consume(child.stderr ?? null, false);
             const statusPromise = child.status;
             let maxWaitMs = settings.ytDlpPerDomainTimeoutMs ?? 15000;
             if (d.includes("youtube.com")) maxWaitMs = settings.ytDlpYouTubeTimeoutMs ?? 120000;

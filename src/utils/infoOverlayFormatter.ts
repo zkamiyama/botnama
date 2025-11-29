@@ -15,7 +15,7 @@ const t = (key: string, locale: string, params?: Record<string, unknown> | null)
       return key;
     }
   }
-  return tpl.replace(/\{([^}]+)\}/g, (_, name) => {
+  return tpl.replace(/\{([^}]+)\}/g, (_: string, name: string) => {
     const v = params?.[name];
     return v === undefined || v === null ? "" : String(v);
   });

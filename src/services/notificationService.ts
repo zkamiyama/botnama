@@ -116,8 +116,8 @@ export class NotificationService {
         return key;
       }
     }
-    return template.replace(/\{([^}]+)\}/g, (_, name) => {
-      const v = params?.[name];
+    return template.replace(/\{([^}]+)\}/g, (_: string, name: string) => {
+      const v = (params as Record<string, unknown> | undefined)?.[name];
       return v === undefined || v === null ? "" : String(v);
     });
   }

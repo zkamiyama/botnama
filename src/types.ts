@@ -75,6 +75,7 @@ export interface RequestItem {
   favoriteCount: number | null;
   danmakuCount: number | null;
   uploader: string | null;
+  thumbnailUrl?: string | null;
   status: RequestStatus;
   statusReason: string | null;
   queuePosition: number | null;
@@ -119,8 +120,32 @@ export interface ServerSettings {
   niconicoCookiesFrom?: string | null;
   niconicoCookiesProfile?: string | null;
   locale: string;
-  ytDlpPerDomainTimeoutMs?: number;
-  ytDlpYouTubeTimeoutMs?: number;
+  ytDlpPerDomainTimeoutMs: number;
+  ytDlpYouTubeTimeoutMs: number;
+  // Notification settings (exposed via rules.json / UI)
+  notifyTelopEnabled?: boolean;
+  notifyTelopNiconico?: boolean;
+  notifyTelopYoutube?: boolean;
+  notifyTelopDelayMs?: number;
+  // Other flags used through services
+  notifyComment?: boolean;
+}
+
+export interface CreateRequestInput {
+  id: string;
+  createdAt: number;
+  commentId: string | null;
+  platform: string;
+  userId: string | null;
+  userName: string | null;
+  originalMessage: string;
+  url: string;
+  parsed: ParsedUrl | null;
+  status: RequestStatus;
+  queuePosition?: number | null;
+  bucket?: string;
+  notifyComment?: boolean;
+  notifyTelop?: boolean;
 }
 
 export interface OverlayPlayMessage {
@@ -146,11 +171,17 @@ export interface OverlayResumeMessage {
   type: "resume";
 }
 
+export interface OverlaySeekMessage {
+  type: "seek";
+  positionSec: number;
+}
+
 export type OverlayInboundMessage =
   | OverlayPlayMessage
   | OverlayStopMessage
   | OverlayPauseMessage
-  | OverlayResumeMessage;
+  | OverlayResumeMessage
+  | OverlaySeekMessage;
 
 export interface OverlayEndedMessage {
   type: "ended";
@@ -166,7 +197,7 @@ export interface OverlayErrorMessage {
 export type OverlayOutboundMessage = OverlayEndedMessage | OverlayErrorMessage;
 
 export interface CommentIngestResult {
-  comment: RawCommentEvent;
+  comment: RawCommentEvent | null;
   request: RequestItem | null;
   warning?: string;
 }

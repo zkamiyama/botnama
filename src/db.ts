@@ -117,7 +117,7 @@ export const getDb = () => {
 export const prepare = (db: DB, sql: string) => {
   // Extract named parameters from SQL (:paramName)
   const paramNames: string[] = [];
-  const positionalSql = sql.replace(/:(\w+)/g, (_, name) => {
+  const positionalSql = sql.replace(/:(\w+)/g, (_: string, name: string) => {
     paramNames.push(name);
     return "?";
   });
@@ -125,16 +125,16 @@ export const prepare = (db: DB, sql: string) => {
   return {
     run: (params?: Record<string, unknown>) => {
       const values = params ? paramNames.map((name) => params[name]) : [];
-      db.query(positionalSql, values);
+      db.query(positionalSql, values as any);
     },
     get: (params?: Record<string, unknown>): unknown => {
       const values = params ? paramNames.map((name) => params[name]) : [];
-      const rows = db.queryEntries(positionalSql, values);
+      const rows = db.queryEntries(positionalSql, values as any);
       return rows[0];
     },
     all: (params?: Record<string, unknown>): unknown[] => {
       const values = params ? paramNames.map((name) => params[name]) : [];
-      return db.queryEntries(positionalSql, values);
+      return db.queryEntries(positionalSql, values as any);
     },
   };
 };

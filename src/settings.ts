@@ -89,6 +89,11 @@ export const DEFAULT_SETTINGS: ServerSettings = {
   locale: DEFAULT_LOCALE,
   ytDlpPerDomainTimeoutMs: 15000,
   ytDlpYouTubeTimeoutMs: 120000,
+  notifyTelopEnabled: false,
+  notifyTelopNiconico: true,
+  notifyTelopYoutube: true,
+  notifyTelopDelayMs: 5000,
+  notifyComment: false,
 };
 
 const coerceNumber = (value: unknown, fallback: number) => {
@@ -172,32 +177,32 @@ const mergeSettings = (raw: Record<string, unknown>): ServerSettings => {
     ytDlpInheritStdio: Boolean(raw.ytDlpInheritStdio ?? DEFAULT_SETTINGS.ytDlpInheritStdio),
     ytDlpBilibiliProxy: coerceNullableString(
       raw.ytDlpBilibiliProxy,
-      DEFAULT_SETTINGS.ytDlpBilibiliProxy,
+      DEFAULT_SETTINGS.ytDlpBilibiliProxy as string | null,
     ),
-    ytDlpUserAgent: coerceNullableString(raw.ytDlpUserAgent, DEFAULT_SETTINGS.ytDlpUserAgent),
+    ytDlpUserAgent: coerceNullableString(raw.ytDlpUserAgent, DEFAULT_SETTINGS.ytDlpUserAgent as string | null),
     globalCookiesFromBrowser: coerceNullableString(
       raw.globalCookiesFromBrowser,
-      DEFAULT_SETTINGS.globalCookiesFromBrowser,
+      DEFAULT_SETTINGS.globalCookiesFromBrowser as string | null,
     ),
     globalCookiesFromBrowserProfile: coerceNullableString(
       raw.globalCookiesFromBrowserProfile,
-      DEFAULT_SETTINGS.globalCookiesFromBrowserProfile,
+      DEFAULT_SETTINGS.globalCookiesFromBrowserProfile as string | null,
     ),
     youtubeCookiesFrom: coerceNullableString(
       raw.youtubeCookiesFrom,
-      DEFAULT_SETTINGS.youtubeCookiesFrom,
+      DEFAULT_SETTINGS.youtubeCookiesFrom as string | null,
     ),
     youtubeCookiesProfile: coerceNullableString(
       raw.youtubeCookiesProfile,
-      DEFAULT_SETTINGS.youtubeCookiesProfile,
+      DEFAULT_SETTINGS.youtubeCookiesProfile as string | null,
     ),
     niconicoCookiesFrom: coerceNullableString(
       raw.niconicoCookiesFrom,
-      DEFAULT_SETTINGS.niconicoCookiesFrom,
+      DEFAULT_SETTINGS.niconicoCookiesFrom as string | null,
     ),
     niconicoCookiesProfile: coerceNullableString(
       raw.niconicoCookiesProfile,
-      DEFAULT_SETTINGS.niconicoCookiesProfile,
+      DEFAULT_SETTINGS.niconicoCookiesProfile as string | null,
     ),
     locale: coerceString(raw.locale, DEFAULT_SETTINGS.locale),
     ytDlpPerDomainTimeoutMs: coerceNumber(raw.ytDlpPerDomainTimeoutMs, DEFAULT_SETTINGS.ytDlpPerDomainTimeoutMs),
@@ -224,32 +229,32 @@ const mergeSettings = (raw: Record<string, unknown>): ServerSettings => {
     merged.ytDlpInheritStdio = inherit.toLowerCase() === "true";
   }
   merged.ytDlpBilibiliProxy = applyEnvOverride(
-    merged.ytDlpBilibiliProxy,
+    merged.ytDlpBilibiliProxy as string | null,
     "BOTNAMA_YTDLP_BILIBILI_PROXY",
   );
-  merged.ytDlpUserAgent = applyEnvOverride(merged.ytDlpUserAgent, "BOTNAMA_YTDLP_USER_AGENT");
+  merged.ytDlpUserAgent = applyEnvOverride(merged.ytDlpUserAgent as string | null, "BOTNAMA_YTDLP_USER_AGENT");
   merged.globalCookiesFromBrowser = applyEnvOverride(
-    merged.globalCookiesFromBrowser,
+    merged.globalCookiesFromBrowser as string | null,
     "BOTNAMA_GLOBAL_COOKIES_FROM",
   );
   merged.globalCookiesFromBrowserProfile = applyEnvOverride(
-    merged.globalCookiesFromBrowserProfile,
+    merged.globalCookiesFromBrowserProfile as string | null,
     "BOTNAMA_GLOBAL_COOKIES_PROFILE",
   );
   merged.youtubeCookiesFrom = applyEnvOverride(
-    merged.youtubeCookiesFrom,
+    merged.youtubeCookiesFrom as string | null,
     "BOTNAMA_YOUTUBE_COOKIES_FROM",
   );
   merged.youtubeCookiesProfile = applyEnvOverride(
-    merged.youtubeCookiesProfile,
+    merged.youtubeCookiesProfile as string | null,
     "BOTNAMA_YOUTUBE_COOKIES_PROFILE",
   );
   merged.niconicoCookiesFrom = applyEnvOverride(
-    merged.niconicoCookiesFrom,
+    merged.niconicoCookiesFrom as string | null,
     "BOTNAMA_NICONICO_COOKIES_FROM",
   );
   merged.niconicoCookiesProfile = applyEnvOverride(
-    merged.niconicoCookiesProfile,
+    merged.niconicoCookiesProfile as string | null,
     "BOTNAMA_NICONICO_COOKIES_PROFILE",
   );
   merged.ytDlpPath = normalizePathForConfig(merged.ytDlpPath) ?? DEFAULT_SETTINGS.ytDlpPath;
@@ -326,8 +331,6 @@ export const saveServerSettings = (settings: ServerSettings) => {
   ensureDirSync(CONFIG_DIR);
   // 設定ファイルには利用者が編集する主要項目のみを書き出す
   const minimalSettings: Partial<ServerSettings> = {
-    globalCookiesFromBrowser: settings.globalCookiesFromBrowser ?? "",
-    globalCookiesFromBrowserProfile: settings.globalCookiesFromBrowserProfile ?? "",
     httpPort: settings.httpPort,
     cacheDir: normalizePathForConfig(settings.cacheDir) ?? settings.cacheDir,
     maxConcurrentDownloads: settings.maxConcurrentDownloads,
