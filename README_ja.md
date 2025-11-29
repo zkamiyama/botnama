@@ -1,20 +1,20 @@
 [English](README.md) | 日本語
 
-# Botnama
+# botnama
 
 <img src="public/icons/boicon.svg" width="128">
 
-**Botnama**は、YouTube・ニコニコ生放送などの配信コメントから動画URLを抽出し、自動ダウンロード・再生を行うOBS連携型メディアボットです。ライブ配信中のリクエスト動画を自動的にキューイングして、シームレスに再生することができます。
+**botnama**は、YouTube・ニコニコ生放送などの配信コメントから動画URLを抽出し、自動ダウンロード・再生を行うOBS連携型メディアボットです。ライブ配信中のリクエスト動画を自動的にキューイングして、シームレスに再生することができます。
 
 ## 主な機能
 
 - **動画URLの自動検出** — コメントから YouTube / ニコニコ / Bilibili / カスタムサイトの URL を抽出
 - **自動ダウンロード & キャッシュ** — `yt-dlp` と `ffmpeg` を使って動画を自動取得・変換
 - **OBS 連携** — ブラウザドック（管理画面）とブラウザソース（再生 Overlay）で OBS に統合
-- **再生キュー管理** — 停止・スキップ・全削除などの操作が可能
-- **通知 Overlay** — リクエスト・再生・スキップなどのイベントを画面上に表示（Info Overlay）
+- **再生管理** — 停止・スキップ・シークなどの操作が可能
+- **通知** — リクエスト・再生などのイベントや動画情報を画面上、またはコメントで通知
 - **認証連携** — YouTube / ニコニコ のブラウザ Cookie 抽出に対応
-- **柔軟なルール設定** — 動画の長さ制限・重複制御・NG ユーザー・ポール（投票）機能
+- **柔軟なルール設定** — 動画の長さ制限・重複制御・NG ユーザー・投票機能
 - **多言語対応** — 日本語・英語の UI 切り替え（`locale` 設定）
 - **MultiCommentViewer プラグイン** — MCVを経由することで様々な配信サイトのコメントを受信可能
 
@@ -49,7 +49,7 @@
 
 1. OBS → **View** → **Docks** → **Custom Browser Docks**
 2. 以下を設定:
-   - **Dock Name**: `Botnama Dock`
+   - **Dock Name**: `botnama Dock`
    - **URL**: `http://localhost:2101/dock/`
 
 ### Overlay（再生画面）を登録
@@ -62,7 +62,7 @@
 
 ### YouTube / ニコニコ生放送と連携する
 
-Botnama はブラウザの Cookie を登録することで、YouTube と ニコニコ生放送 の配信と連携できます。
+botnama はブラウザの Cookie を登録することで、YouTube と ニコニコ生放送 の配信と連携できます。
 
 #### Cookie を登録することでできること
 
@@ -80,7 +80,7 @@ Botnama はブラウザの Cookie を登録することで、YouTube と ニコ�
    ブラウザで YouTube や ニコニコ動画にログインしておきます。   
    **推奨ブラウザ**: Firefox を推奨します。Chrome はセキュリティ機能により Cookie の抽出が失敗する場合があります。
 
-2. **Botnama の設定を編集**
+2. **botnama の設定を編集**
 
    `config/settings.toml` を開き、以下の設定を追加します：
 
@@ -94,9 +94,9 @@ Botnama はブラウザの Cookie を登録することで、YouTube と ニコ�
    - **Chrome**: `C:\Users\<ユーザー名>\AppData\Local\Google\Chrome\User Data\<プロファイル名>\Network\Cookies`
 
 
-3. **Botnama を再起動**
+3. **botnama を再起動**
 
-   設定を保存したら、Botnama を再起動します。これで、ブラウザの Cookie が自動的に読み込まれるようになります。
+   設定を保存したら、botnama を再起動します。これで、ブラウザの Cookie が自動的に読み込まれるようになります。
 
 4. **動作確認**
 
@@ -124,15 +124,28 @@ Botnama はブラウザの Cookie を登録することで、YouTube と ニコ�
 
 1. **プラグインを配置**
 
-- `plugins/botnama ディレクトリを MultiCommentViewer の `plugins/` ディレクトリにコピー
+- `plugins/botnama` ディレクトリを MultiCommentViewer の `plugins/` ディレクトリにコピー
 
-3. **設定（任意）**
+2. **設定（任意）**
 
-- **Botnama 側**: `config/settings.toml` の `mcvAccessToken` に任意の値を設定
+- **botnama 側**: `config/settings.toml` の `mcvAccessToken` に任意の値を設定
 - **MCV 側**: プラグイン設定画面の「共有トークン」に同じ値を入力
 
+## ルール設定
 
-### 開発環境
+Dock（管理画面）の **Rules** タブで、動画リクエストに関する詳細なルールを設定できます。
+
+- **動画の長さ制限**: 再生時間の長い動画を制限
+- **重複制御**: 同じ動画の連続リクエストを防止
+- **同時リクエスト制限**: ユーザーごとのリクエスト間隔を設定
+- **NG ユーザー**: 特定のユーザーからのリクエストを拒否
+- **アンケート**: リクエスト動画の継続再生可否を視聴者投票で決定
+
+### カスタムサイト設定
+
+YouTube / ニコニコ動画 /ビリビリ動画 以外のサイトの URL を検知対象に追加できます。
+
+## 開発
 
 - **Deno 2.x** — [公式サイト](https://deno.land/)からインストール
 - **.NET SDK**（任意） — MCV プラグインをビルドする場合に必要
@@ -142,7 +155,7 @@ Botnama はブラウザの Cookie を登録することで、YouTube と ニコ�
 1. **リポジトリをクローン**
 
 ```bash
-git clone https://github.com/your-username/botnama.git
+git clone https://github.com/zkamiyama/botnama
 cd botnama
 ```
 
@@ -181,7 +194,7 @@ deno task release
 
 ## ドキュメント
 
-- **API ドキュメント** — 各種エンドポイントの詳細は USAGE.md を参照
+- **API ドキュメント** — [docs/API.md](docs/API.md) を参照
 
 ## 謝辞
 
@@ -189,6 +202,7 @@ deno task release
 - **[ffmpeg](https://ffmpeg.org/)**
 - **[MultiCommentViewer](https://github.com/DaisukeDaisuke/MultiCommentViewer)**
 - **[mediabunny](https://www.npmjs.com/package/mediabunny)**
+- **[ボトル/bobineKS](https://x.com/bobine_ks)**
 
 ---
 

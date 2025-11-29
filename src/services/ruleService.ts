@@ -49,7 +49,13 @@ const DEFAULT_STATE: RuleState = {
   allowYoutube: true,
   allowNicovideo: true,
   allowBilibili: true,
-  customSites: [],
+  customSites: [
+    {
+      id: "f9a75ad8-417c-406a-8196-2f8e344646f7",
+      pattern: "https://soundcloud.com/",
+      alias: "sc",
+    },
+  ],
   concurrentLimitEnabled: false,
   concurrentLimitCount: 5,
   ngUserBlockingEnabled: false,
