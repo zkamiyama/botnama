@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Botnama Info Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/icons/boicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/icons/boicon.ico" sizes="32x32" />
+  <style>
+    :root {
+      --band-height: 56px;
+      --bg: linear-gradient(90deg, rgba(20, 31, 48, 0.86), rgba(12, 18, 32, 0.92));
+      --text: #eaf3ff;
+      --info: #3fbff0;
+      --warn: #f6b93b;
+      --error: #ff5e7b;
+      --padding: 14px;
+      --info-font-size: 32px;
+      --status-font-size: 32px;
+      --poll-font-size: 32px;
+      --marquee-tiling-gap: 192px;
+      --stack-gap: 0px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Nunito", "Noto Sans JP", system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: transparent;
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    #bandStack {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--stack-gap);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .band {
+      width: 100%;
+      min-height: var(--band-height);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      padding: 0 var(--padding);
+      overflow: hidden;
+      border-bottom: 0;
+      --stack-translate-x: 100%;
+      --stack-translate-y: 0px;
+      transform: translateX(var(--stack-translate-x)) translateY(var(--stack-translate-y));
+      opacity: 0;
+      transition: transform 260ms ease, opacity 260ms ease;
+      will-change: transform, opacity;
+    }
+    .band.visible { --stack-translate-x: 0; opacity: 1; }
+    .band.exit-left { --stack-translate-x: -100%; opacity: 0; }
+    .band.stack-reflow {
+      transition: transform 1000ms cubic-bezier(0.2, 0.7, 0.3, 1), opacity 260ms ease;
+    }
+    .band[data-level="warn"] { background: linear-gradient(90deg, rgba(246,185,59,0.35), rgba(12,18,32,0.92)); }
+    .band[data-level="error"] { background: linear-gradient(90deg, rgba(255,94,123,0.45), rgba(12,18,32,0.92)); }
+    .band[data-scope="status"][data-level="warn"] { background: linear-gradient(90deg, rgba(246,185,59,0.22), rgba(12,18,32,0.9)); }
+    .band[data-scope="status"][data-level="error"] { background: linear-gradient(90deg, rgba(255,94,123,0.28), rgba(12,18,32,0.9)); }
+    .band-anim-in {
+      animation: bandReveal 360ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+    }
+    .band-anim-out {
+      animation: bandHide 360ms cubic-bezier(0.7, 0.2, 0.9, 0.6) forwards;
+    }
+    .marquee {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      white-space: nowrap;
+      will-change: transform;
+      width: 100%;
+    }
+    .marquee.scroll {
+      animation: marquee linear infinite;
+    }
+    .band-text {
+      font-size: var(--info-font-size);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+      margin: 0;
+      line-height: 1.2;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0;
+    }
+    .band[data-scope="status"] .band-text {
+      font-size: var(--status-font-size);
+    }
+    .band-text.poll-result {
+      font-size: var(--poll-font-size);
+    }
+    .band-body, .band-stats {
+      font-size: inherit;
+    }
+    .band-stats {
+      opacity: 0.9;
+      font-weight: inherit;
+    }
+    .stats-sep {
+      opacity: 0.65;
+      margin: 0 10px;
+    }
+    .tiling-clone {
+      margin-left: var(--marquee-tiling-gap, 48px);
+    }
+    .tiling-chunk {
+      display: inline-flex;
+      align-items: baseline;
+    }
+    .label {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .label-text {
+      font-size: 0.9em;
+      letter-spacing: 0.08em;
+    }
+    .icon {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--info);
+      box-shadow: 0 0 8px var(--info);
+    }
+    .band[data-level="warn"] .icon { background: var(--warn); box-shadow: 0 0 12px var(--warn); }
+    .band[data-level="error"] .icon { background: var(--error); box-shadow: 0 0 12px var(--error); }
+    .poll-winner {
+      color: #ffeb3b;
+      font-weight: 800;
+      text-shadow: 0 0 5px rgba(255, 235, 59, 0.6);
+      font-size: 1.1em;
+    }
+    .poll-sep { margin: 0 8px; }
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(calc(-1 * var(--scroll-distance, 50%))); }
+    }
+    @keyframes bandReveal {
+      0% { opacity: 0; clip-path: inset(0 20% 0 0); }
+      100% { opacity: 1; clip-path: inset(0 0 0 0); }
+    }
+    @keyframes bandHide {
+      0% { opacity: 1; clip-path: inset(0 0 0 0); }
+      100% { opacity: 0; clip-path: inset(0 0 0 20%); }
+    }
+    /* OBS用に上書きしやすいようクラスと変数中心 */
+  </style>
+</head>
+<body>
+  <div id="bandStack" aria-live="polite" aria-atomic="false"></div>
+  <template id="bandTemplate">
+    <div class="band" data-level="info" data-scope="info">
+      <div class="marquee" data-role="marquee">
+        <span class="label" data-role="label">
+          <span class="icon" data-role="icon"></span>
+          <span class="label-text" data-role="labelText">INFO</span>
+        </span>
+        <span class="band-text" data-role="payload"></span>
+        <span class="band-text" data-role="textClone"></span>
+      </div>
+    </div>
+  </template>
+  <script type="module" src="./overlay-info.js"></script>
+</body>
+</html>

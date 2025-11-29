@@ -1,0 +1,90 @@
+*.md
+!USAGE.md
+# Ignore local config files (do not commit local configs)
+# All files under `config/` are ignored to avoid committing secrets or local settings.
+config/**
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Node / package managers (in case present later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+pnpm-lock.yaml
+
+# Deno / typed caches (Deno uses a global cache by default, but ignore any local caches)
+.deno/
+.denocache
+
+# Build / deploy / temp
+dist/
+build/
+out/
+temp/
+release/
+tmp/
+# App specific runtime caches and media files
+cache/
+cache/videos/**
+
+
+# Database files (ignore whole directory to avoid leaking URLs / cached data)
+db/
+db/**
+*.sqlite
+*.db
+
+# Logs
+*.log
+logs/
+
+# Secrets / credentials
+.env
+.env.*
+secrets/
+*.key
+*.pem
+*.pfx
+*.p12
+
+# Common binary/large media (in case present later)
+*.exe
+*.dll
+*.so
+*.dylib
+*.cache
+*.pbd
+bin/**
+
+# Misc
+coverage/
+*.bak
+*.tmp
+*.swp
+
+# Generated site output
+public/build/
+public/overlay/build/
+
+plugins/*/bin/
+plugins/*/obj/
+
+# .NET restore/build metadata (contains machine specific paths)
+**/*.nuget.dgspec.json
+**/*.nuget.g.props
+**/*.nuget.g.targets
+**/project.assets.json
+# External dependencies tracked as submodules only
+external/*
+!external/MultiCommentViewer/
+!external/mediabunny/
+

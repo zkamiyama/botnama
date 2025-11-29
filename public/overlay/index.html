@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overlay</title>
+  <link rel="icon" href="/icons/boicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/icons/boicon.ico" sizes="32x32" />
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      font-family: "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: transparent;
+    }
+    #overlayStatus {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      max-width: min(360px, 70vw);
+      pointer-events: none;
+    }
+    #overlayStatus[data-level="warn"] {
+      background: rgba(180, 120, 20, 0.8);
+    }
+    #overlayStatus[data-level="error"] {
+      background: rgba(200, 40, 40, 0.85);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="overlayCanvas"></canvas>
+  <div id="overlayStatus" hidden></div>
+  <script type="module" src="./overlay.js"></script>
+</body>
+</html>

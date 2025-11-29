@@ -1,0 +1,425 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Request Dock</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="/icons/boicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/icons/boicon.ico" sizes="32x32" />
+</head>
+
+<body>
+  <main class="dock">
+    <section class="summary" id="summary">
+      <div class="summary-metrics" id="summaryMetrics"></div>
+      <div class="control-buttons">
+        <button id="skipButton" type="button" title="Skip">
+          <img src="/icons/skip_next.svg" alt="Skip" />
+        </button>
+        <button id="stopButton" type="button" title="Stop current playback">
+          <img src="/icons/stop.svg" alt="Stop" />
+        </button>
+        <button id="autoButton" type="button" title="AUTO toggle">
+          <img src="/icons/play_arrow.svg" alt="AUTO" />
+        </button>
+        <button id="shuffleButton" type="button" title="Shuffle mode">
+          <img src="/icons/shuffle.svg" alt="Shuffle" />
+        </button>
+        <button id="intakeButton" type="button" title="Request intake toggle">
+          <img src="/icons/how_to_vote.svg" alt="Intake" />
+        </button>
+        <button id="refreshButton" type="button" title="Refresh">
+          <img src="/icons/refresh.svg" alt="Refresh" />
+        </button>
+      </div>
+    </section>
+    <section class="playback-controls" id="playbackControls">
+      <div class="playback-times">
+        <span id="playbackCurrent">--:--</span>
+        <input id="playbackSeek" type="range" min="0" max="1" value="0" step="0.01" disabled />
+        <span id="playbackDuration">--:--</span>
+      </div>
+      <div class="playback-buttons">
+        <button id="seekBackwardButton" type="button">-10s</button>
+        <button id="pauseButton" type="button" title="Pause / Resume">
+          <img src="/icons/pause.svg" alt="Pause" />
+        </button>
+        <button id="seekForwardButton" type="button">+10s</button>
+      </div>
+    </section>
+    <section class="queue">
+      <div class="tabs" id="tabSwitcher">
+        <button class="tab-button active" data-tab="list">Queue</button>
+        <button class="tab-button" data-tab="log">Log</button>
+        <button class="tab-button" data-tab="debug">System</button>
+        <button class="tab-button" data-tab="comments">Comments</button>
+        <button class="tab-button" data-tab="rules">Rules</button>
+        <button class="tab-button" data-tab="stock">Stock</button>
+      </div>
+      <div class="tab-shell">
+        <div class="tab-panel active" id="tabList">
+          <div class="queue-controls">
+            <div class="queue-counter" id="queueCounter"></div>
+            <button id="clearButton" type="button" class="danger">Clear</button>
+          </div>
+          <div class="queue-list" id="queueList"></div>
+        </div>
+        <!-- Notification settings moved to System tab -> Browser Cookie Authentication section. -->
+        <div class="tab-panel" id="tabDebug">
+          <div class="locale-row">
+            <label for="localeSelect">Language</label>
+            <select id="localeSelect">
+              <option value="auto">Auto</option>
+              <option value="ja">Japanese</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <form id="commentForm" class="comment-form">
+            <label for="commentInput" id="commentFormLabel">Debug Comment</label>
+            <textarea id="commentInput" rows="4" placeholder="Enter a comment (URL registers a request)"></textarea>
+            <label for="userNameInput" id="userNameLabel">User (optional)</label>
+            <input type="text" id="userNameInput" placeholder="Anonymous" autocomplete="off" />
+            <label for="commentDestination" id="commentDestinationLabel">Destination</label>
+            <select id="commentDestination">
+              <option value="debug" id="commentDestDebug">Debug (Internal)</option>
+              <option value="youtube" id="commentDestYoutube">YouTube Live Chat</option>
+              <option value="niconico" id="commentDestniconico">niconico Live</option>
+            </select>
+            <button type="submit" id="commentSubmitButton">Send</button>
+          </form>
+          <p id="formStatus" class="status-text"></p>
+
+            <div class="rule-section no-divider" style="margin-top: 20px;">
+              <div class="rule-row" style="align-items: center; gap: 8px;">
+                <span class="rule-section-title" data-i18n="lbl_browser_auth">Browser Cookie Authentication</span>
+                <button type="button" id="refreshAuthButton" style="padding: 2px 8px; font-size: 0.85em;">更新</button>
+              </div>
+              <p class="rule-hint" data-i18n="lbl_configuration">
+                Configuration: Edit config/settings.toml to set browser for cookies (chrome, edge, firefox).
+              </p>
+              <div class="rule-group" style="gap: 8px;">
+                <div class="rule-row auth-row">
+                  <div class="auth-line">
+                    <span class="rule-label">YouTube</span>
+                    <span id="authYoutubeStatus" class="status-text">Checking...</span>
+                    <a id="youtubeUserLink" href="#" target="_blank" class="url-link" style="font-size: 0.9em; display: none;">--</a>
+                  </div>
+                  <div class="auth-line">
+                  <span class="rule-label subtle" data-i18n="broadcast_url_label" data-site="youtube">配信URL</span>
+                    <a id="youtubeLiveIdLink" href="#" target="_blank" class="url-link" style="font-size: 0.9em;">--</a>
+                    <span id="youtubeBroadcastStatus" class="status-text" style="font-size: 0.9em; color: var(--text-muted);">配信未検出</span>
+                    <a id="youtubeManualInputLink" href="#" class="url-link" style="font-size: 0.9em; display: none;" data-i18n="manual_input_link">放送URLを入力</a>
+                    <button id="youtubeManualClearButton" type="button" style="display:none; border:none; background:none; color: var(--text-muted); font-size:0.8em; cursor:pointer;" data-i18n="manual_input_clear">クリア</button>
+                </div>
+              </div>
+              <p class="rule-hint" id="authYoutubeBrowser" style="margin-left: 0; margin-top: 2px;"></p>
+            </div>
+            <div class="rule-group" style="gap: 8px;">
+                <div class="rule-row auth-row">
+                  <div class="auth-line">
+                    <span class="rule-label">niconico</span>
+                    <span id="authniconicoStatus" class="status-text">Checking...</span>
+                    <a id="niconicoUserLink" href="#" target="_blank" class="url-link" style="font-size: 0.9em; display: none;">--</a>
+                  </div>
+                  <div class="auth-line">
+                  <span class="rule-label subtle" data-i18n="broadcast_url_label" data-site="niconico">配信URL</span>
+                    <a id="niconicoLiveIdLink" href="#" target="_blank" class="url-link" style="font-size: 0.9em;">--</a>
+                    <span id="niconicoBroadcastStatus" class="status-text" style="font-size: 0.9em; color: var(--text-muted);">配信未検出</span>
+                    <a id="niconicoManualInputLink" href="#" class="url-link" style="font-size: 0.9em; display: none;" data-i18n="manual_input_link">放送URLを入力</a>
+                    <button id="niconicoManualClearButton" type="button" style="display:none; border:none; background:none; color: var(--text-muted); font-size:0.8em; cursor:pointer;" data-i18n="manual_input_clear">クリア</button>
+                </div>
+              </div>
+              <p class="rule-hint" id="authniconicoBrowser" style="margin-left: 0; margin-top: 2px;"></p>
+            </div>
+            <!-- Notification relay configuration moved here (per-site checkboxes and single delay) -->
+            <div class="rule-section" style="margin-top: 8px;">
+              <div class="rule-row">
+                <label>
+                  <input type="checkbox" id="notifyEnableToggle" />
+                  <span data-i18n="notif_enable">テロップをコメントとして送信</span>
+                </label>
+              </div>
+              <div class="rule-group" id="notifyTargetsGroup">
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="notifyniconicoToggle" />
+                    <span data-i18n="notif_send_nico">niconico へ送信する</span>
+                  </label>
+                </div>
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="notifyYoutubeToggle" />
+                    <span data-i18n="notif_send_yt">YouTube へ送信する</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="rule-section rule-group" id="notifyDelayGroup" style="margin-top:8px;">
+              <div class="rule-row">
+                <label for="notifyDelayMs" data-i18n="notif_delay_label">送信ディレイ (ms)</label>
+                <input type="number" id="notifyDelayMs" min="0" step="100" value="5000" />
+                <span id="notifyStatus" class="status-text" style="margin-left:8px;"></span>
+              </div>
+            </div>
+            <div class="system-table" style="margin-top: 16px;">
+              <div class="system-row">
+                <span id="ytDlpCombinedLabel">yt-dlp (latest release)</span>
+                <span id="ytDlpCombinedValue">-- (--)</span>
+                <button type="button" id="updateYtDlpButton">Update</button>
+              </div>
+              <div class="system-message" id="systemMessage"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tabComments">
+          <div class="comment-actions action-bar">
+            <div class="action-group">
+              <button type="button" id="commentCsvButton">[CSV]</button>
+              <button type="button" id="commentCopyButton">Copy</button>
+            </div>
+            <div class="action-group">
+              <span class="status-text action-status" id="commentStatus"></span>
+              <button type="button" id="commentClearButton" class="danger">Clear</button>
+            </div>
+          </div>
+          <div class="comment-table">
+            <div class="comment-table-header">
+              <div class="comment-header-cell" data-column="time">
+                <span class="column-title">Time</span>
+                <span class="column-resizer comment-column-resizer" data-column="time"></span>
+              </div>
+              <div class="comment-header-cell" data-column="user">
+                <span class="column-title">User</span>
+                <span class="column-resizer comment-column-resizer" data-column="user"></span>
+              </div>
+              <div class="comment-header-cell" data-column="body">
+                <span class="column-title">Body</span>
+              </div>
+            </div>
+            <div class="comment-table-body" id="commentTableBody"></div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tabLog">
+          <div class="log-panel">
+            <div class="log-actions action-bar">
+              <div class="action-group">
+                <button type="button" id="logCsvButton">[CSV]</button>
+                <button type="button" id="logCopyButton">Copy</button>
+              </div>
+              <div class="action-group">
+                <span class="status-text action-status" id="logStatus"></span>
+                <button type="button" id="logClearButton" class="danger">Clear</button>
+              </div>
+            </div>
+            <div class="log-table">
+              <div class="log-table-header">
+                <div class="log-header-cell" data-column="time">
+                  <span class="log-column" data-column="time">Time</span>
+                  <span class="column-resizer log-column-resizer" data-column="time"></span>
+                </div>
+                <div class="log-header-cell" data-column="title">
+                  <span class="log-column" data-column="title">Title</span>
+                  <span class="column-resizer log-column-resizer" data-column="title"></span>
+                </div>
+                <div class="log-header-cell" data-column="url">
+                  <span class="log-column" data-column="url">URL</span>
+                </div>
+              </div>
+              <div class="log-table-body" id="logTableBody"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tabRules">
+          <div class="queue-controls rule-save-row">
+            <div class="action-group" style="gap:8px;">
+              <button type="button" id="ruleSaveButton" class="primary" disabled>Save</button>
+              <span class="status-text action-status" id="ruleStatus"></span>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-section">
+              <div class="rule-row">
+                <label>
+                  <input type="checkbox" id="ruleEnableToggle" />
+                  <span data-i18n="rule_enable">Enable max duration</span>
+                </label>
+              </div>
+              <div class="rule-group" id="ruleMaxDurationGroup">
+                <div class="rule-row">
+                  <label for="ruleMaxDuration" data-i18n="rule_max">Max duration (minutes)</label>
+                  <input type="number" id="ruleMaxDuration" min="1" max="180" step="1" value="10" />
+                </div>
+              </div>
+            </div>
+
+            <div class="rule-section">
+              <div class="rule-row">
+                <label>
+                  <input type="checkbox" id="rulePollEnableToggle" />
+                  <span data-i18n="rule_poll_enable">Enable continuation poll</span>
+                </label>
+              </div>
+              <div class="rule-group" id="rulePollGroup">
+                <div class="rule-row">
+                  <label for="rulePollInterval" data-i18n="rule_poll_interval">Ask every (sec)</label>
+                  <input type="number" id="rulePollInterval" min="10" max="600" step="5" value="90" />
+                </div>
+                <div class="rule-row">
+                  <label for="rulePollWindow" data-i18n="rule_poll_window">Voting window (sec)</label>
+                  <input type="number" id="rulePollWindow" min="5" max="120" step="5" value="20" />
+                </div>
+                <div class="rule-row">
+                  <label for="rulePollStopDelay" data-i18n="rule_poll_stop_delay">Stop delay after rejection
+                    (sec)</label>
+                  <input type="number" id="rulePollStopDelay" min="1" max="60" step="1" value="10" />
+                </div>
+              </div>
+            </div>
+
+            <div class="rule-section">
+              <div class="rule-row">
+                <label>
+                  <input type="checkbox" id="ruleNoDuplicateToggle" />
+                  <span data-i18n="rule_no_duplicate">Block duplicate requests</span>
+                </label>
+              </div>
+              <div class="rule-group" id="ruleDuplicateGroup">
+                <div class="rule-row">
+                  <label for="ruleCooldownMinutes" data-i18n="rule_cooldown">Cooldown after playback (minutes)</label>
+                  <input type="number" id="ruleCooldownMinutes" min="0" max="1440" step="1" value="60" />
+                </div>
+                <p class="rule-hint" id="ruleCooldownHint" data-i18n="rule_cooldown_hint">0 = cannot request again until
+                  queue is cleared</p>
+              </div>
+            </div>
+
+            <div class="rule-section">
+              <div class="rule-row">
+                <label>
+                  <input type="checkbox" id="ruleConcurrentToggle" />
+                  <span id="ruleConcurrentLabel">Simultaneous request limit</span>
+                </label>
+              </div>
+              <div class="rule-group" id="ruleConcurrentGroup">
+                <div class="rule-row">
+                  <label for="ruleConcurrentMax" id="ruleConcurrentMaxLabel">Max requests per user</label>
+                  <input type="number" id="ruleConcurrentMax" min="1" max="50" step="1" value="5" />
+                </div>
+              </div>
+            </div>
+
+            <div class="rule-section">
+              <div class="rule-row">
+                <span class="rule-section-title" id="ruleSiteSectionLabel" data-i18n="rule_site_section">Allowed request
+                  sources</span>
+              </div>
+              <div class="rule-group" id="ruleSiteToggleGroup">
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="ruleSiteYoutubeToggle" />
+                    <span data-i18n="rule_site_youtube">Allow YouTube requests</span>
+                  </label>
+                </div>
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="ruleSiteNicovideoToggle" />
+                    <span data-i18n="rule_site_nicovideo">Allow niconico requests</span>
+                  </label>
+                </div>
+                <div class="rule-row">
+                  <label>
+                    <input type="checkbox" id="ruleSiteBilibiliToggle" />
+                    <span data-i18n="rule_site_bilibili">Allow bilibili requests</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="rule-section" id="ruleCustomSiteSection">
+              <div class="rule-row rule-list-header">
+                <span class="rule-section-title" id="ruleCustomSiteLabel" data-i18n="rule_custom_section">Custom
+                  whitelist</span>
+              </div>
+              <div class="rule-group rule-list-group">
+                <div class="rule-edit-list" id="ruleCustomSiteList"></div>
+                <div class="rule-row rule-list-footer">
+                  <button type="button" id="ruleCustomSiteAddButton" class="rule-add-button" aria-label="Add pattern">
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="rule-section" id="ruleNgUserSection">
+              <div class="rule-row rule-list-header">
+                <span class="rule-section-title" id="ruleNgSectionLabel" data-i18n="rule_ng_section">NG users</span>
+              </div>
+              <div class="rule-row">
+                <label>
+                  <input type="checkbox" id="ruleNgUserToggle" />
+                  <span id="ruleNgUserToggleLabel" data-i18n="rule_ng_enable">Block NG user IDs</span>
+                </label>
+              </div>
+              <div class="rule-group rule-list-group" id="ruleNgUserGroup">
+                <p class="rule-hint" id="ruleNgUserHint" data-i18n="rule_ng_hint">Right-click a comment to add quickly.
+                </p>
+                <div class="rule-edit-list" id="ruleNgUserList" aria-live="polite"></div>
+                <div class="rule-row rule-list-footer">
+                  <button type="button" id="ruleNgUserAddButton" class="rule-add-button" aria-label="Add NG user">
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tabStock">
+          <div class="rule-card" style="margin-bottom:8px;">
+            <div class="rule-section" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <label for="stockSelect" class="rule-label">Stock</label>
+              <select id="stockSelect"></select>
+            </div>
+            <div class="rule-section" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <input type="text" id="stockAddInput" placeholder="Enter URL or message" style="flex:1; min-width:220px;" />
+              <button type="button" id="stockAddButton" class="primary">Add</button>
+            </div>
+          </div>
+          <div class="queue-controls stock-save-row">
+            <div class="action-group" style="gap:8px;">
+              <button type="button" id="stockSaveButton" class="primary" disabled>Save</button>
+              <span class="queue-counter" id="stockCounter"></span>
+            </div>
+            <span class="status-text action-status" id="stockSaveStatus"></span>
+          </div>
+          <div class="queue-list" id="stockList"></div>
+        </div>
+      </div>
+      <div class="status-area" id="statusArea"></div>
+    </section>
+  </main>
+  <script type="module" src="/i18n.js"></script>
+  <script type="module" src="./dock.js"></script>
+  <script type="module" src="./broadcast.js"></script>
+  <dialog id="manualUrlDialog">
+    <form method="dialog" id="manualUrlForm" style="min-width: 280px;">
+      <p id="manualDialogTitle" data-i18n="manual_dialog_title" style="margin-top:0; margin-bottom:8px;">放送URLを入力</p>
+      <input type="url" id="manualUrlInput" name="manualUrlInput" placeholder="https://example.com/watch..." style="width: 100%; padding: 6px;" required />
+      <p id="manualUrlHint" class="rule-hint" data-i18n="manual_dialog_hint" style="margin:6px 0;">YouTube または niconico の配信URL/IDを入力してください。</p>
+      <p id="manualUrlError" class="status-text" style="color: var(--danger, #c00); min-height: 1.2em; margin: 4px 0 0;"></p>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+        <button type="reset" id="manualUrlCancelButton" value="cancel" data-i18n="btn_cancel">キャンセル</button>
+        <button type="submit" class="primary" id="manualUrlSubmitButton" value="submit" data-i18n="btn_apply">決定</button>
+      </div>
+    </form>
+  </dialog>
+  <div class="context-menu hidden" id="stockContextMenu">
+    <button type="button" data-action="submit-stock" data-i18n="btn_stock_submit">Submit</button>
+    <button type="button" data-action="submit-stock-suspend" data-i18n="btn_stock_submit_suspend">Submit as suspend</button>
+  </div>
+</body>
+
+</html>
+
+
