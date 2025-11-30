@@ -1,14 +1,14 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys --allow-ffi --unstable-ffi src/server.ts",
+    "dev": "powershell -NoProfile -Command \"deno run -A scripts/generate-proto-descriptor.ts; deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys --allow-ffi --unstable-ffi src/server.ts\"",
     "setup": "deno run --allow-net --allow-read --allow-write --allow-run=git,tar scripts/setup.ts",
     "update-deps": "deno run --allow-run --allow-read --allow-write --allow-net --allow-env scripts/update-deps.ts",
     "fmt": "deno fmt",
     "check": "deno check src",
     "lint": "deno lint",
     "plugin:mcv:build": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release/plugins/botnama')) { New-Item -ItemType Directory -Path './release/plugins/botnama' -Force | Out-Null }; dotnet build plugins/mcv-botnama/MCV.Botnama.Plugin.csproj -c Release -o ./release/plugins/botnama\"",
-    "release": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release')) { New-Item -ItemType Directory -Path './release' | Out-Null }; .\\scripts\\prune-npm-packages.ps1; deno compile -A --no-check --output release/botnama.exe --include public --icon public/icons/boicon.ico --target x86_64-pc-windows-msvc src/server.ts; if (Test-Path -Path './external') { Copy-Item -Path './external' -Destination './release' -Recurse -Force }\"",
-    "release:local": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release')) { New-Item -ItemType Directory -Path './release' | Out-Null }; .\\scripts\\prune-npm-packages.ps1; deno compile -A --no-check --output release/botnama --include public src/server.ts\""
+    "release": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release')) { New-Item -ItemType Directory -Path './release' | Out-Null }; .\\scripts\\prune-npm-packages.ps1; deno run -A scripts/generate-proto-descriptor.ts; deno compile -A --no-check --output release/botnama.exe --include public --icon public/icons/boicon.ico --target x86_64-pc-windows-msvc src/server.ts\"",
+    "release:local": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release')) { New-Item -ItemType Directory -Path './release' | Out-Null }; .\\scripts\\prune-npm-packages.ps1; deno run -A scripts/generate-proto-descriptor.ts; deno compile -A --no-check --output release/botnama --include public src/server.ts\""
   },
   "imports": {
     "hono": "npm:hono@^4.4.10",

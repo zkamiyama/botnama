@@ -1,0 +1,1746 @@
+{
+  "nested": {
+    "dwango": {
+      "nested": {
+        "nicolive": {
+          "nested": {
+            "chat": {
+              "nested": {
+                "service": {
+                  "nested": {
+                    "edge": {
+                      "nested": {
+                        "ChunkedMessage": {
+                          "oneofs": {
+                            "payload": {
+                              "oneof": [
+                                "message",
+                                "state",
+                                "signal"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "meta": {
+                              "type": "Meta",
+                              "id": 1
+                            },
+                            "message": {
+                              "type": "data.NicoliveMessage",
+                              "id": 2
+                            },
+                            "state": {
+                              "type": "data.NicoliveState",
+                              "id": 4
+                            },
+                            "signal": {
+                              "type": "Signal",
+                              "id": 5
+                            }
+                          },
+                          "nested": {
+                            "Meta": {
+                              "fields": {
+                                "id": {
+                                  "type": "string",
+                                  "id": 1
+                                },
+                                "at": {
+                                  "type": "google.protobuf.Timestamp",
+                                  "id": 2
+                                },
+                                "origin": {
+                                  "type": "data.NicoliveOrigin",
+                                  "id": 3
+                                }
+                              }
+                            },
+                            "Signal": {
+                              "values": {
+                                "Flushed": 0
+                              }
+                            }
+                          }
+                        },
+                        "PackedSegment": {
+                          "fields": {
+                            "messages": {
+                              "rule": "repeated",
+                              "type": "ChunkedMessage",
+                              "id": 1
+                            },
+                            "next": {
+                              "type": "Next",
+                              "id": 2
+                            },
+                            "snapshot": {
+                              "type": "StateSnapshot",
+                              "id": 3
+                            }
+                          },
+                          "nested": {
+                            "Next": {
+                              "fields": {
+                                "uri": {
+                                  "type": "string",
+                                  "id": 1
+                                }
+                              }
+                            },
+                            "StateSnapshot": {
+                              "fields": {
+                                "uri": {
+                                  "type": "string",
+                                  "id": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "ChunkedEntry": {
+                          "oneofs": {
+                            "entry": {
+                              "oneof": [
+                                "backward",
+                                "previous",
+                                "segment",
+                                "next"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "backward": {
+                              "type": "BackwardSegment",
+                              "id": 2
+                            },
+                            "previous": {
+                              "type": "MessageSegment",
+                              "id": 3
+                            },
+                            "segment": {
+                              "type": "MessageSegment",
+                              "id": 1
+                            },
+                            "next": {
+                              "type": "ReadyForNext",
+                              "id": 4
+                            }
+                          },
+                          "nested": {
+                            "ReadyForNext": {
+                              "fields": {
+                                "at": {
+                                  "type": "int64",
+                                  "id": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "MessageSegment": {
+                          "fields": {
+                            "from": {
+                              "type": "google.protobuf.Timestamp",
+                              "id": 1
+                            },
+                            "until": {
+                              "type": "google.protobuf.Timestamp",
+                              "id": 2
+                            },
+                            "uri": {
+                              "type": "string",
+                              "id": 3
+                            }
+                          }
+                        },
+                        "BackwardSegment": {
+                          "fields": {
+                            "until": {
+                              "type": "google.protobuf.Timestamp",
+                              "id": 1
+                            },
+                            "segment": {
+                              "type": "PackedSegment.Next",
+                              "id": 2
+                            },
+                            "snapshot": {
+                              "type": "PackedSegment.StateSnapshot",
+                              "id": 3
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "data": {
+                  "nested": {
+                    "NicoliveMessage": {
+                      "oneofs": {
+                        "data": {
+                          "oneof": [
+                            "chat",
+                            "simple_notification",
+                            "gift",
+                            "nicoad",
+                            "game_update",
+                            "tag_updated",
+                            "moderator_updated",
+                            "ssng_updated",
+                            "overflowed_chat",
+                            "forwarded_chat",
+                            "simple_notification_v2",
+                            "akashic_message_event"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "chat": {
+                          "type": "Chat",
+                          "id": 1
+                        },
+                        "simple_notification": {
+                          "type": "SimpleNotification",
+                          "id": 7
+                        },
+                        "gift": {
+                          "type": "Gift",
+                          "id": 8
+                        },
+                        "nicoad": {
+                          "type": "Nicoad",
+                          "id": 9
+                        },
+                        "game_update": {
+                          "type": "GameUpdate",
+                          "id": 13
+                        },
+                        "tag_updated": {
+                          "type": "TagUpdated",
+                          "id": 17
+                        },
+                        "moderator_updated": {
+                          "type": "atoms.ModeratorUpdated",
+                          "id": 18
+                        },
+                        "ssng_updated": {
+                          "type": "atoms.SSNGUpdated",
+                          "id": 19
+                        },
+                        "overflowed_chat": {
+                          "type": "Chat",
+                          "id": 20
+                        },
+                        "forwarded_chat": {
+                          "type": "atoms.ForwardedChat",
+                          "id": 22
+                        },
+                        "simple_notification_v2": {
+                          "type": "atoms.SimpleNotificationV2",
+                          "id": 23
+                        },
+                        "akashic_message_event": {
+                          "type": "atoms.AkashicMessageEvent",
+                          "id": 24
+                        }
+                      },
+                      "reserved": [
+                        [
+                          2,
+                          6
+                        ],
+                        [
+                          10,
+                          12
+                        ],
+                        [
+                          14,
+                          16
+                        ]
+                      ]
+                    },
+                    "NicoliveState": {
+                      "oneofs": {
+                        "_statistics": {
+                          "oneof": [
+                            "statistics"
+                          ]
+                        },
+                        "_enquete": {
+                          "oneof": [
+                            "enquete"
+                          ]
+                        },
+                        "_move_order": {
+                          "oneof": [
+                            "move_order"
+                          ]
+                        },
+                        "_marquee": {
+                          "oneof": [
+                            "marquee"
+                          ]
+                        },
+                        "_comment_lock": {
+                          "oneof": [
+                            "comment_lock"
+                          ]
+                        },
+                        "_comment_mode": {
+                          "oneof": [
+                            "comment_mode"
+                          ]
+                        },
+                        "_trial_panel": {
+                          "oneof": [
+                            "trial_panel"
+                          ]
+                        },
+                        "_program_status": {
+                          "oneof": [
+                            "program_status"
+                          ]
+                        },
+                        "_moderation_announcement": {
+                          "oneof": [
+                            "moderation_announcement"
+                          ]
+                        },
+                        "_ichiba_launcher": {
+                          "oneof": [
+                            "ichiba_launcher"
+                          ]
+                        },
+                        "_stream_state_change": {
+                          "oneof": [
+                            "stream_state_change"
+                          ]
+                        },
+                        "_akashic_state": {
+                          "oneof": [
+                            "akashic_state"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "statistics": {
+                          "type": "Statistics",
+                          "id": 1,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "enquete": {
+                          "type": "Enquete",
+                          "id": 2,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "move_order": {
+                          "type": "MoveOrder",
+                          "id": 3,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "marquee": {
+                          "type": "Marquee",
+                          "id": 4,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "comment_lock": {
+                          "type": "CommentLock",
+                          "id": 5,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "comment_mode": {
+                          "type": "CommentMode",
+                          "id": 6,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "trial_panel": {
+                          "type": "TrialPanel",
+                          "id": 7,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "program_status": {
+                          "type": "ProgramStatus",
+                          "id": 9,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "moderation_announcement": {
+                          "type": "atoms.ModerationAnnouncement",
+                          "id": 10,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "ichiba_launcher": {
+                          "type": "atoms.IchibaLauncherItemSet",
+                          "id": 11,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "stream_state_change": {
+                          "type": "atoms.StreamStateChange",
+                          "id": 12,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "akashic_state": {
+                          "type": "atoms.AkashicStateRouting",
+                          "id": 13,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        }
+                      }
+                    },
+                    "NicoliveOrigin": {
+                      "oneofs": {
+                        "origin": {
+                          "oneof": [
+                            "chat"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "chat": {
+                          "type": "Chat",
+                          "id": 1
+                        }
+                      },
+                      "nested": {
+                        "Chat": {
+                          "fields": {
+                            "live_id": {
+                              "type": "int64",
+                              "id": 1
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "Chat": {
+                      "oneofs": {
+                        "_name": {
+                          "oneof": [
+                            "name"
+                          ]
+                        },
+                        "_raw_user_id": {
+                          "oneof": [
+                            "raw_user_id"
+                          ]
+                        },
+                        "_hashed_user_id": {
+                          "oneof": [
+                            "hashed_user_id"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "content": {
+                          "type": "string",
+                          "id": 1
+                        },
+                        "vpos": {
+                          "type": "int32",
+                          "id": 3
+                        },
+                        "account_status": {
+                          "type": "AccountStatus",
+                          "id": 4
+                        },
+                        "name": {
+                          "type": "string",
+                          "id": 2,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "raw_user_id": {
+                          "type": "int64",
+                          "id": 5,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "hashed_user_id": {
+                          "type": "string",
+                          "id": 6,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "modifier": {
+                          "type": "Modifier",
+                          "id": 7
+                        },
+                        "no": {
+                          "type": "int32",
+                          "id": 8
+                        }
+                      },
+                      "nested": {
+                        "AccountStatus": {
+                          "values": {
+                            "Standard": 0,
+                            "Premium": 1
+                          }
+                        },
+                        "Modifier": {
+                          "oneofs": {
+                            "color": {
+                              "oneof": [
+                                "named_color",
+                                "full_color"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "position": {
+                              "type": "Pos",
+                              "id": 1
+                            },
+                            "size": {
+                              "type": "Size",
+                              "id": 2
+                            },
+                            "named_color": {
+                              "type": "ColorName",
+                              "id": 3
+                            },
+                            "full_color": {
+                              "type": "FullColor",
+                              "id": 4
+                            },
+                            "font": {
+                              "type": "Font",
+                              "id": 5
+                            },
+                            "opacity": {
+                              "type": "Opacity",
+                              "id": 6
+                            }
+                          },
+                          "nested": {
+                            "Pos": {
+                              "values": {
+                                "naka": 0,
+                                "shita": 1,
+                                "ue": 2
+                              }
+                            },
+                            "Size": {
+                              "values": {
+                                "medium": 0,
+                                "small": 1,
+                                "big": 2
+                              }
+                            },
+                            "ColorName": {
+                              "values": {
+                                "white": 0,
+                                "red": 1,
+                                "pink": 2,
+                                "orange": 3,
+                                "yellow": 4,
+                                "green": 5,
+                                "cyan": 6,
+                                "blue": 7,
+                                "purple": 8,
+                                "black": 9,
+                                "white2": 10,
+                                "red2": 11,
+                                "pink2": 12,
+                                "orange2": 13,
+                                "yellow2": 14,
+                                "green2": 15,
+                                "cyan2": 16,
+                                "blue2": 17,
+                                "purple2": 18,
+                                "black2": 19
+                              }
+                            },
+                            "FullColor": {
+                              "fields": {
+                                "r": {
+                                  "type": "int32",
+                                  "id": 1
+                                },
+                                "g": {
+                                  "type": "int32",
+                                  "id": 2
+                                },
+                                "b": {
+                                  "type": "int32",
+                                  "id": 3
+                                }
+                              }
+                            },
+                            "Font": {
+                              "values": {
+                                "defont": 0,
+                                "mincho": 1,
+                                "gothic": 2
+                              }
+                            },
+                            "Opacity": {
+                              "values": {
+                                "Normal": 0,
+                                "Translucent": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "OperatorComment": {
+                      "oneofs": {
+                        "_name": {
+                          "oneof": [
+                            "name"
+                          ]
+                        },
+                        "_link": {
+                          "oneof": [
+                            "link"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "content": {
+                          "type": "string",
+                          "id": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "id": 2,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "modifier": {
+                          "type": "Chat.Modifier",
+                          "id": 3
+                        },
+                        "link": {
+                          "type": "string",
+                          "id": 4,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        }
+                      }
+                    },
+                    "Jump": {
+                      "fields": {
+                        "content": {
+                          "type": "string",
+                          "id": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "id": 2
+                        },
+                        "wait": {
+                          "type": "google.protobuf.Duration",
+                          "id": 4
+                        }
+                      }
+                    },
+                    "Redirect": {
+                      "fields": {
+                        "uri": {
+                          "type": "string",
+                          "id": 1
+                        },
+                        "message": {
+                          "type": "string",
+                          "id": 2
+                        },
+                        "wait": {
+                          "type": "google.protobuf.Duration",
+                          "id": 4
+                        }
+                      }
+                    },
+                    "SimpleNotification": {
+                      "oneofs": {
+                        "message": {
+                          "oneof": [
+                            "ichiba",
+                            "quote",
+                            "emotion",
+                            "cruise",
+                            "program_extended",
+                            "ranking_in",
+                            "ranking_updated",
+                            "visited",
+                            "supporter_registered",
+                            "user_level_up"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "ichiba": {
+                          "type": "string",
+                          "id": 1
+                        },
+                        "quote": {
+                          "type": "string",
+                          "id": 2
+                        },
+                        "emotion": {
+                          "type": "string",
+                          "id": 3
+                        },
+                        "cruise": {
+                          "type": "string",
+                          "id": 4
+                        },
+                        "program_extended": {
+                          "type": "string",
+                          "id": 5
+                        },
+                        "ranking_in": {
+                          "type": "string",
+                          "id": 6
+                        },
+                        "ranking_updated": {
+                          "type": "string",
+                          "id": 8
+                        },
+                        "visited": {
+                          "type": "string",
+                          "id": 7
+                        },
+                        "supporter_registered": {
+                          "type": "string",
+                          "id": 9
+                        },
+                        "user_level_up": {
+                          "type": "string",
+                          "id": 10
+                        }
+                      }
+                    },
+                    "Gift": {
+                      "oneofs": {
+                        "_advertiser_user_id": {
+                          "oneof": [
+                            "advertiser_user_id"
+                          ]
+                        },
+                        "_contribution_rank": {
+                          "oneof": [
+                            "contribution_rank"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "item_id": {
+                          "type": "string",
+                          "id": 1
+                        },
+                        "advertiser_user_id": {
+                          "type": "int64",
+                          "id": 2,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "advertiser_name": {
+                          "type": "string",
+                          "id": 3
+                        },
+                        "point": {
+                          "type": "int64",
+                          "id": 4
+                        },
+                        "message": {
+                          "type": "string",
+                          "id": 5
+                        },
+                        "item_name": {
+                          "type": "string",
+                          "id": 6
+                        },
+                        "contribution_rank": {
+                          "type": "int32",
+                          "id": 7,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        }
+                      }
+                    },
+                    "Nicoad": {
+                      "oneofs": {
+                        "versions": {
+                          "oneof": [
+                            "v0",
+                            "v1"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "v0": {
+                          "type": "V0",
+                          "id": 1
+                        },
+                        "v1": {
+                          "type": "V1",
+                          "id": 2
+                        }
+                      },
+                      "nested": {
+                        "V0": {
+                          "fields": {
+                            "latest": {
+                              "type": "Latest",
+                              "id": 1
+                            },
+                            "ranking": {
+                              "rule": "repeated",
+                              "type": "Ranking",
+                              "id": 2
+                            },
+                            "total_point": {
+                              "type": "int32",
+                              "id": 3
+                            }
+                          },
+                          "nested": {
+                            "Latest": {
+                              "oneofs": {
+                                "_message": {
+                                  "oneof": [
+                                    "message"
+                                  ]
+                                }
+                              },
+                              "fields": {
+                                "advertiser": {
+                                  "type": "string",
+                                  "id": 1
+                                },
+                                "point": {
+                                  "type": "int32",
+                                  "id": 2
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "id": 3,
+                                  "options": {
+                                    "proto3_optional": true
+                                  }
+                                }
+                              }
+                            },
+                            "Ranking": {
+                              "oneofs": {
+                                "_message": {
+                                  "oneof": [
+                                    "message"
+                                  ]
+                                },
+                                "_user_rank": {
+                                  "oneof": [
+                                    "user_rank"
+                                  ]
+                                }
+                              },
+                              "fields": {
+                                "advertiser": {
+                                  "type": "string",
+                                  "id": 1
+                                },
+                                "rank": {
+                                  "type": "int32",
+                                  "id": 2
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "id": 3,
+                                  "options": {
+                                    "proto3_optional": true
+                                  }
+                                },
+                                "user_rank": {
+                                  "type": "int32",
+                                  "id": 4,
+                                  "options": {
+                                    "proto3_optional": true
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "V1": {
+                          "fields": {
+                            "total_ad_point": {
+                              "type": "int32",
+                              "id": 1
+                            },
+                            "message": {
+                              "type": "string",
+                              "id": 2
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "CommentLock": {
+                      "oneofs": {
+                        "_follow_restriction": {
+                          "oneof": [
+                            "follow_restriction"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "status": {
+                          "type": "Status",
+                          "id": 1
+                        },
+                        "follow_restriction": {
+                          "type": "FollowRestriction",
+                          "id": 2,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        }
+                      },
+                      "nested": {
+                        "Status": {
+                          "values": {
+                            "Unrestricted": 0,
+                            "Locked": 1,
+                            "Restricted": 2
+                          }
+                        },
+                        "FollowRestriction": {
+                          "fields": {
+                            "minimum_follow_duration": {
+                              "type": "google.protobuf.Duration",
+                              "id": 1
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "CommentMode": {
+                      "fields": {
+                        "layout": {
+                          "type": "Layout",
+                          "id": 1
+                        }
+                      },
+                      "nested": {
+                        "Layout": {
+                          "values": {
+                            "Normal": 0,
+                            "SplitTop": 1,
+                            "Background": 2
+                          }
+                        }
+                      }
+                    },
+                    "GameUpdate": {
+                      "fields": {}
+                    },
+                    "TrialPanel": {
+                      "fields": {
+                        "panel": {
+                          "type": "Panel",
+                          "id": 1
+                        },
+                        "unqualified_user": {
+                          "type": "Mode",
+                          "id": 2
+                        }
+                      },
+                      "nested": {
+                        "Panel": {
+                          "values": {
+                            "Hidden": 0,
+                            "Display": 1
+                          }
+                        },
+                        "Mode": {
+                          "values": {
+                            "Allowed": 0,
+                            "Restricted": 1,
+                            "Forbidden": 2
+                          }
+                        }
+                      }
+                    },
+                    "ProgramStatus": {
+                      "fields": {
+                        "state": {
+                          "type": "State",
+                          "id": 1
+                        }
+                      },
+                      "nested": {
+                        "State": {
+                          "values": {
+                            "Unknown": 0,
+                            "Ended": 1
+                          }
+                        }
+                      }
+                    },
+                    "TagUpdated": {
+                      "fields": {
+                        "tags": {
+                          "rule": "repeated",
+                          "type": "Tag",
+                          "id": 1
+                        },
+                        "owner_locked": {
+                          "type": "bool",
+                          "id": 2
+                        }
+                      },
+                      "nested": {
+                        "Tag": {
+                          "oneofs": {
+                            "_nicopedia_uri": {
+                              "oneof": [
+                                "nicopedia_uri"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "text": {
+                              "type": "string",
+                              "id": 1
+                            },
+                            "locked": {
+                              "type": "bool",
+                              "id": 2
+                            },
+                            "reserved": {
+                              "type": "bool",
+                              "id": 3
+                            },
+                            "nicopedia_uri": {
+                              "type": "string",
+                              "id": 4,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "Statistics": {
+                      "oneofs": {
+                        "_viewers": {
+                          "oneof": [
+                            "viewers"
+                          ]
+                        },
+                        "_comments": {
+                          "oneof": [
+                            "comments"
+                          ]
+                        },
+                        "_ad_points": {
+                          "oneof": [
+                            "ad_points"
+                          ]
+                        },
+                        "_gift_points": {
+                          "oneof": [
+                            "gift_points"
+                          ]
+                        },
+                        "_timeshift_reservations": {
+                          "oneof": [
+                            "timeshift_reservations"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "viewers": {
+                          "type": "int64",
+                          "id": 1,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "comments": {
+                          "type": "int64",
+                          "id": 2,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "ad_points": {
+                          "type": "int64",
+                          "id": 3,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "gift_points": {
+                          "type": "int64",
+                          "id": 4,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        },
+                        "timeshift_reservations": {
+                          "type": "int64",
+                          "id": 6,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        }
+                      },
+                      "reserved": [
+                        [
+                          5,
+                          5
+                        ]
+                      ]
+                    },
+                    "Marquee": {
+                      "oneofs": {
+                        "_display": {
+                          "oneof": [
+                            "display"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "display": {
+                          "type": "Display",
+                          "id": 1,
+                          "options": {
+                            "proto3_optional": true
+                          }
+                        }
+                      },
+                      "nested": {
+                        "Display": {
+                          "oneofs": {
+                            "_duration": {
+                              "oneof": [
+                                "duration"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "operator_comment": {
+                              "type": "OperatorComment",
+                              "id": 1
+                            },
+                            "duration": {
+                              "type": "google.protobuf.Duration",
+                              "id": 3,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "Enquete": {
+                      "fields": {
+                        "question": {
+                          "type": "string",
+                          "id": 1
+                        },
+                        "choices": {
+                          "rule": "repeated",
+                          "type": "Choice",
+                          "id": 2
+                        },
+                        "status": {
+                          "type": "Status",
+                          "id": 3
+                        }
+                      },
+                      "nested": {
+                        "Choice": {
+                          "oneofs": {
+                            "_per_mille": {
+                              "oneof": [
+                                "per_mille"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "description": {
+                              "type": "string",
+                              "id": 1
+                            },
+                            "per_mille": {
+                              "type": "int32",
+                              "id": 3,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            }
+                          }
+                        },
+                        "Status": {
+                          "values": {
+                            "Closed": 0,
+                            "Poll": 1,
+                            "Result": 2
+                          }
+                        }
+                      }
+                    },
+                    "MoveOrder": {
+                      "oneofs": {
+                        "to": {
+                          "oneof": [
+                            "jump",
+                            "redirect"
+                          ]
+                        }
+                      },
+                      "fields": {
+                        "jump": {
+                          "type": "Jump",
+                          "id": 1
+                        },
+                        "redirect": {
+                          "type": "Redirect",
+                          "id": 2
+                        }
+                      }
+                    },
+                    "atoms": {
+                      "nested": {
+                        "ForwardedChat": {
+                          "fields": {
+                            "chat": {
+                              "type": "Chat",
+                              "id": 1
+                            },
+                            "message_id": {
+                              "type": "string",
+                              "id": 2
+                            },
+                            "source_live_id": {
+                              "type": "int64",
+                              "id": 3
+                            },
+                            "mode": {
+                              "type": "ForwardingMode",
+                              "id": 4
+                            }
+                          },
+                          "nested": {
+                            "ForwardingMode": {
+                              "values": {
+                                "UNKNOWN": 0,
+                                "FROM_CRUISE": 1,
+                                "COLLAB_SHARING": 2
+                              }
+                            }
+                          }
+                        },
+                        "ModeratorUserInfo": {
+                          "oneofs": {
+                            "_nickname": {
+                              "oneof": [
+                                "nickname"
+                              ]
+                            },
+                            "_iconUrl": {
+                              "oneof": [
+                                "iconUrl"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "user_id": {
+                              "type": "int64",
+                              "id": 1
+                            },
+                            "nickname": {
+                              "type": "string",
+                              "id": 2,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            },
+                            "iconUrl": {
+                              "type": "string",
+                              "id": 3,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            }
+                          }
+                        },
+                        "ModeratorUpdated": {
+                          "fields": {
+                            "operation": {
+                              "type": "ModeratorOperation",
+                              "id": 1
+                            },
+                            "operator": {
+                              "type": "ModeratorUserInfo",
+                              "id": 2
+                            },
+                            "updatedAt": {
+                              "type": "google.protobuf.Timestamp",
+                              "id": 3
+                            }
+                          },
+                          "nested": {
+                            "ModeratorOperation": {
+                              "values": {
+                                "ADD": 0,
+                                "DELETE": 1
+                              }
+                            }
+                          }
+                        },
+                        "SSNGUpdated": {
+                          "oneofs": {
+                            "_type": {
+                              "oneof": [
+                                "type"
+                              ]
+                            },
+                            "_source": {
+                              "oneof": [
+                                "source"
+                              ]
+                            },
+                            "_updatedAt": {
+                              "oneof": [
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "operation": {
+                              "type": "SSNGOperation",
+                              "id": 1
+                            },
+                            "ssng_id": {
+                              "type": "int64",
+                              "id": 2
+                            },
+                            "operator": {
+                              "type": "ModeratorUserInfo",
+                              "id": 3
+                            },
+                            "type": {
+                              "type": "SSNGType",
+                              "id": 4,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            },
+                            "source": {
+                              "type": "string",
+                              "id": 5,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            },
+                            "updatedAt": {
+                              "type": "google.protobuf.Timestamp",
+                              "id": 6,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            },
+                            "operator_type": {
+                              "type": "SSNGOperatorType",
+                              "id": 7
+                            }
+                          },
+                          "nested": {
+                            "SSNGOperation": {
+                              "values": {
+                                "ADD": 0,
+                                "DELETE": 1
+                              }
+                            },
+                            "SSNGType": {
+                              "values": {
+                                "USER": 0,
+                                "WORD": 1,
+                                "COMMAND": 2
+                              }
+                            },
+                            "SSNGOperatorType": {
+                              "values": {
+                                "MODERATOR": 0,
+                                "BROADCASTER": 1
+                              }
+                            }
+                          }
+                        },
+                        "ModerationAnnouncement": {
+                          "oneofs": {
+                            "_message": {
+                              "oneof": [
+                                "message"
+                              ]
+                            }
+                          },
+                          "fields": {
+                            "message": {
+                              "type": "string",
+                              "id": 1,
+                              "options": {
+                                "proto3_optional": true
+                              }
+                            },
+                            "guidelineItems": {
+                              "rule": "repeated",
+                              "type": "GuidelineItem",
+                              "id": 2
+                            },
+                            "updatedAt": {
+                              "type": "google.protobuf.Timestamp",
+                              "id": 3
+                            }
+                          },
+                          "nested": {
+                            "GuidelineItem": {
+                              "values": {
+                                "UNKNOWN": 0,
+                                "SEXUAL": 1,
+                                "SPAM": 2,
+                                "SLANDER": 3,
+                                "PERSONAL_INFORMATION": 4
+                              }
+                            }
+                          }
+                        },
+                        "SimpleNotificationV2": {
+                          "fields": {
+                            "type": {
+                              "type": "NotificationType",
+                              "id": 1
+                            },
+                            "message": {
+                              "type": "string",
+                              "id": 2
+                            },
+                            "show_in_telop": {
+                              "type": "bool",
+                              "id": 3
+                            },
+                            "show_in_list": {
+                              "type": "bool",
+                              "id": 4
+                            }
+                          },
+                          "nested": {
+                            "NotificationType": {
+                              "values": {
+                                "UNKNOWN": 0,
+                                "ICHIBA": 1,
+                                "EMOTION": 2,
+                                "CRUISE": 3,
+                                "PROGRAM_EXTENDED": 4,
+                                "RANKING_IN": 5,
+                                "VISITED": 6,
+                                "SUPPORTER_REGISTERED": 7,
+                                "USER_LEVEL_UP": 8,
+                                "USER_FOLLOW": 9
+                              }
+                            }
+                          }
+                        },
+                        "AkashicMessageEvent": {
+                          "fields": {
+                            "type": {
+                              "type": "string",
+                              "id": 1
+                            },
+                            "playId": {
+                              "type": "string",
+                              "id": 2
+                            },
+                            "ignorable": {
+                              "type": "bool",
+                              "id": 3
+                            },
+                            "transient": {
+                              "type": "bool",
+                              "id": 4
+                            },
+                            "parameters": {
+                              "type": "google.protobuf.Struct",
+                              "id": 5
+                            }
+                          }
+                        },
+                        "AkashicStateRouting": {
+                          "fields": {
+                            "epoch": {
+                              "type": "int64",
+                              "id": 1
+                            },
+                            "join": {
+                              "rule": "repeated",
+                              "type": "AkashicMessageEvent",
+                              "id": 2
+                            },
+                            "continuation": {
+                              "rule": "repeated",
+                              "type": "AkashicMessageEvent",
+                              "id": 3
+                            },
+                            "shared": {
+                              "rule": "repeated",
+                              "type": "AkashicMessageEvent",
+                              "id": 4
+                            }
+                          }
+                        },
+                        "IchibaLauncherItemSet": {
+                          "fields": {
+                            "epoch": {
+                              "type": "int64",
+                              "id": 1
+                            },
+                            "items": {
+                              "rule": "repeated",
+                              "type": "Item",
+                              "id": 2
+                            }
+                          },
+                          "nested": {
+                            "Item": {
+                              "oneofs": {
+                                "_addedUserId": {
+                                  "oneof": [
+                                    "addedUserId"
+                                  ]
+                                },
+                                "_reportUrl": {
+                                  "oneof": [
+                                    "reportUrl"
+                                  ]
+                                }
+                              },
+                              "fields": {
+                                "id": {
+                                  "type": "string",
+                                  "id": 1
+                                },
+                                "entityId": {
+                                  "type": "string",
+                                  "id": 2
+                                },
+                                "serviceName": {
+                                  "type": "string",
+                                  "id": 3
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "id": 4
+                                },
+                                "launchDialogType": {
+                                  "type": "LaunchDialogType",
+                                  "id": 5
+                                },
+                                "thumbnailUrl": {
+                                  "type": "string",
+                                  "id": 6
+                                },
+                                "thumbnailWidth": {
+                                  "type": "int32",
+                                  "id": 7
+                                },
+                                "thumbnailHeight": {
+                                  "type": "int32",
+                                  "id": 8
+                                },
+                                "launchUrl": {
+                                  "type": "string",
+                                  "id": 9
+                                },
+                                "addedUserId": {
+                                  "type": "string",
+                                  "id": 10,
+                                  "options": {
+                                    "proto3_optional": true
+                                  }
+                                },
+                                "reportUrl": {
+                                  "type": "string",
+                                  "id": 11,
+                                  "options": {
+                                    "proto3_optional": true
+                                  }
+                                },
+                                "running": {
+                                  "type": "bool",
+                                  "id": 12
+                                }
+                              },
+                              "nested": {
+                                "LaunchDialogType": {
+                                  "values": {
+                                    "SMALL": 0,
+                                    "RICHIVIEW": 1
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "StreamStateChange": {
+                          "fields": {
+                            "epoch": {
+                              "type": "int64",
+                              "id": 1
+                            },
+                            "state": {
+                              "type": "State",
+                              "id": 2
+                            }
+                          },
+                          "nested": {
+                            "State": {
+                              "values": {
+                                "PASSTHROUGH": 0,
+                                "PROCESSED": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "google": {
+      "nested": {
+        "protobuf": {
+          "nested": {
+            "Timestamp": {
+              "fields": {
+                "seconds": {
+                  "type": "int64",
+                  "id": 1
+                },
+                "nanos": {
+                  "type": "int32",
+                  "id": 2
+                }
+              }
+            },
+            "Duration": {
+              "fields": {
+                "seconds": {
+                  "type": "int64",
+                  "id": 1
+                },
+                "nanos": {
+                  "type": "int32",
+                  "id": 2
+                }
+              }
+            },
+            "Struct": {
+              "fields": {
+                "fields": {
+                  "keyType": "string",
+                  "type": "Value",
+                  "id": 1
+                }
+              }
+            },
+            "Value": {
+              "oneofs": {
+                "kind": {
+                  "oneof": [
+                    "nullValue",
+                    "numberValue",
+                    "stringValue",
+                    "boolValue",
+                    "structValue",
+                    "listValue"
+                  ]
+                }
+              },
+              "fields": {
+                "nullValue": {
+                  "type": "NullValue",
+                  "id": 1
+                },
+                "numberValue": {
+                  "type": "double",
+                  "id": 2
+                },
+                "stringValue": {
+                  "type": "string",
+                  "id": 3
+                },
+                "boolValue": {
+                  "type": "bool",
+                  "id": 4
+                },
+                "structValue": {
+                  "type": "Struct",
+                  "id": 5
+                },
+                "listValue": {
+                  "type": "ListValue",
+                  "id": 6
+                }
+              }
+            },
+            "NullValue": {
+              "values": {
+                "NULL_VALUE": 0
+              }
+            },
+            "ListValue": {
+              "fields": {
+                "values": {
+                  "rule": "repeated",
+                  "type": "Value",
+                  "id": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -117,6 +117,9 @@ export async function runSetup() {
   });
   await ensureMediabunnyAssets();
   await ensureMcvPluginBuilt();
+  // Ensure the protobuf descriptor is generated for development and release builds
+  console.log("[setup] Generating protobuf descriptor...");
+  await runCommand("deno", ["run", "-A", "scripts/generate-proto-descriptor.ts"]);
   console.log("[setup] all done");
 }
 
