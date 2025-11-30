@@ -78,9 +78,7 @@ export const formatInfoOverlayForComment = (
     const formatEntry = (key: string, value: string | number | null) =>
       value !== null && value !== undefined && String(value).length > 0 ? `【${t(key, loc)}】 ${value}` : null;
 
-    const uploaded = typeof s.uploadedAt === "number"
-      ? new Date(s.uploadedAt).toLocaleDateString(loc.startsWith("ja") ? "ja-JP" : "en-US")
-      : null;
+    const uploaded = formatYmd(s.uploadedAt as number);
     const duration = typeof s.durationSec === "number" && s.durationSec > 0
       ? formatDurationClock(s.durationSec)
       : null;

@@ -25,9 +25,9 @@ export class NDGRClient {
     private abortController: AbortController | null = null;
     private chatSocket: WebSocket | null = null;
     private watchSocket: WebSocket | null = null;
-        // Keepseat interval handler for watch websocket (startWatching)
-        private watchSeatInterval: ReturnType<typeof setInterval> | null = null;
-        private watchSeatIntervalSec: number | null = null;
+    // Keepseat interval handler for watch websocket (startWatching)
+    private watchSeatInterval: ReturnType<typeof setInterval> | null = null;
+    private watchSeatIntervalSec: number | null = null;
     private chatHeartbeat: ReturnType<typeof setInterval> | null = null;
     private frontendId: number | null = null;
     private frontendVersion: string | null = null;
@@ -198,7 +198,7 @@ export class NDGRClient {
                 if (response.ok) {
                     const data = await response.json();
                     if (data.data?.rooms?.[0]?.viewUri) {
-                    this.logDebug("[NDGRClient] Retrieved View URI from programinfo API");
+                        this.logDebug("[NDGRClient] Retrieved View URI from programinfo API");
                         return data.data.rooms[0].viewUri;
                     }
                 }
@@ -801,6 +801,14 @@ export class NDGRClient {
 
             if (!viewApiUri) throw new Error("View API URI missing after scraping");
 
+            // Handle mpn (HTTP polling) endpoints
+            if (viewApiUri.includes("mpn.live.nicovideo.jp/api/view/")) {
+                this.logDebug("[NDGRClient] Using HTTP polling (mpn)");
+                const httpUri = viewApiUri.replace(/^wss:/, "https:");
+                await this.streamCommentsHttp(httpUri, onComment, onError);
+                return;
+            }
+
             this.logDebug("[NDGRClient] Using WebSocket");
             await this.streamCommentsWs(viewApiUri, onComment, onError, liveId);
         } catch (err) {
@@ -809,4 +817,6 @@ export class NDGRClient {
             if (onError) onError(err instanceof Error ? err : new Error(message));
         }
     }
+
+
 }

@@ -36,12 +36,17 @@ export class NiconicoService {
     }
 
     // Allow setting cached cookie header (server bootstrap can use this to avoid duplicate work)
-    public setCachedCookieHeader(value: string | null) {
+    setCachedCookieHeader(value: string | null) {
         if (!value) {
             this.cachedCookieHeader = null;
             return;
         }
         this.cachedCookieHeader = { value, fetchedAt: Date.now() };
+    }
+
+    invalidateCookies() {
+        this.logDebug("[Niconico] Invalidating cached cookies");
+        this.cachedCookieHeader = null;
     }
 
     setVerbose(enabled: boolean) {
@@ -163,14 +168,28 @@ export class NiconicoService {
         }, 10000) as unknown as number; // Check every 10s
     }
 
+    private switching = false;
+
     // Get comments using NDGR client (Stateful / Buffered)
     async getComments(liveId: string): Promise<NiconicoComment[]> {
         this.lastAccessTime = Date.now();
         this.scheduleCleanup();
 
-        // If switching live ID, stop previous stream
+        // If switching live ID, stop previous stream and wait
         if (this.activeLiveId !== liveId) {
-            this.stopCurrentStream();
+            // Prevent concurrent switches
+            while (this.switching) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            this.switching = true;
+            try {
+                console.log(`[Niconico] Switching from ${this.activeLiveId} to ${liveId}`);
+                this.stopCurrentStream();
+                // Give the old stream time to fully disconnect
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } finally {
+                this.switching = false;
+            }
         }
 
         // If no active client, start one
@@ -203,11 +222,14 @@ export class NiconicoService {
                     },
                     (error: Error) => {
                         console.error(`[Niconico] Stream error: ${error?.message ?? String(error)}`);
+                        this.stopCurrentStream();
+                        this.invalidateCookies();
                     }
                 ).catch((err: any) => {
                     const message = err?.message ?? String(err);
                     console.error(`[Niconico] streamComments threw: ${message}`);
                     this.stopCurrentStream();
+                    this.invalidateCookies();
                 });
 
             } catch (err) {

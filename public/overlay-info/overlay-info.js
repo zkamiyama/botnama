@@ -380,9 +380,7 @@ const renderStats = (stats) => {
   const fmtNumber = (n) =>
     typeof n === "number" && Number.isFinite(n) ? n.toLocaleString(locale) : null;
   const parts = [];
-  const uploaded = typeof stats.uploadedAt === "number"
-    ? new Date(stats.uploadedAt).toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US")
-    : null;
+  const uploaded = formatYmd(stats.uploadedAt);
   const duration = typeof stats.durationSec === "number" && stats.durationSec > 0
     ? new Date(stats.durationSec * 1000).toISOString().slice(11, 19).replace(/^00:/, "")
     : null;

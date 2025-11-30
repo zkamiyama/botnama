@@ -7,7 +7,7 @@
     "check": "deno check src",
     "lint": "deno lint",
     "plugin:mcv:build": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release/plugins/botnama')) { New-Item -ItemType Directory -Path './release/plugins/botnama' -Force | Out-Null }; dotnet build plugins/mcv-botnama/MCV.Botnama.Plugin.csproj -c Release -o ./release/plugins/botnama\"",
-    "release": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release')) { New-Item -ItemType Directory -Path './release' | Out-Null }; .\\scripts\\prune-npm-packages.ps1; deno compile -A --no-check --output release/botnama.exe --include public --icon public/icons/boicon.ico --target x86_64-pc-windows-msvc src/server.ts\"",
+    "release": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release')) { New-Item -ItemType Directory -Path './release' | Out-Null }; .\\scripts\\prune-npm-packages.ps1; deno compile -A --no-check --output release/botnama.exe --include public --icon public/icons/boicon.ico --target x86_64-pc-windows-msvc src/server.ts; if (Test-Path -Path './external') { Copy-Item -Path './external' -Destination './release' -Recurse -Force }\"",
     "release:local": "powershell -NoProfile -Command \"if(-not (Test-Path -Path './release')) { New-Item -ItemType Directory -Path './release' | Out-Null }; .\\scripts\\prune-npm-packages.ps1; deno compile -A --no-check --output release/botnama --include public src/server.ts\""
   },
   "imports": {
@@ -30,8 +30,7 @@
     ],
     "strict": true,
     "noImplicitAny": true,
-    "useUnknownInCatchVariables": false
-    ,
+    "useUnknownInCatchVariables": false,
     "skipLibCheck": true
   },
   "fmt": {
