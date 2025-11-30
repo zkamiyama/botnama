@@ -1,11 +1,12 @@
 import { ParsedUrl } from "../types.ts";
+import { compileCustomSiteRegex, getCustomSiteRules } from "./ruleService.ts";
 
 const urlRegex = /(https?:\/\/[^\s]+)/gi;
 const YOUTUBE_ID_REGEXES = [
   /watch\?v=([A-Za-z0-9_-]{11})/i,
   /youtu\.be\/([A-Za-z0-9_-]{11})/i,
   /shorts\/([A-Za-z0-9_-]+)/i,
-  /live\/([A-Za-z0-9_-]+)/i,
+  // NOTE: We intentionally do not detect /live/ID here — live redirects and IDs can be non-video identifiers.
 ];
 const NICOVIDEO_ID_REGEX = /\b((?:sm|nm|so)\d+)\b/i;
 // For URL path parsing, validate that the extracted ID is a supported video id
@@ -47,9 +48,6 @@ const normalizeYoutubeId = (url: URL) => {
     const id = url.searchParams.get("v");
     if (id) return id;
     if (pathSegments[0] === "shorts" && pathSegments[1]) {
-      return pathSegments[1];
-    }
-    if (pathSegments[0] === "live" && pathSegments[1]) {
       return pathSegments[1];
     }
   }
@@ -146,7 +144,22 @@ const buildParsedUrlFromFullUrl = (rawUrl: string): ParsedUrl | null => {
     }
     const hostname = url.hostname.toLowerCase();
     if (!isWhitelistedHost(hostname)) {
-      return null;
+      const customRules = getCustomSiteRules();
+      let matched = false;
+      for (const rule of customRules) {
+        const regex = compileCustomSiteRegex(rule.pattern);
+        if (regex && regex.test(rawUrl)) {
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) return null;
+      return {
+        rawUrl,
+        normalizedUrl: rawUrl,
+        videoId: rawUrl,
+        site: "other",
+      };
     }
     if (isYoutubeHostname(hostname) || isYoutubeShortHostname(hostname)) {
       const videoId = normalizeYoutubeId(url);
@@ -220,16 +233,13 @@ const extractBilibiliFromPlainText = (message: string): ParsedUrl | null => {
 const extractNicoFromPlainText = (message: string): ParsedUrl | null => {
   const match = message.match(NICOVIDEO_ID_REGEX);
   if (!match || !match[1]) return null;
-  const id = match[1].toLowerCase();
-  let normalizedId = id;
-  if (id.startsWith("nm") || id.startsWith("so")) {
-    normalizedId = `sm${id.replace(/^(nm|so)/, "")}`;
-  }
-  const normalizedUrl = `https://www.nicovideo.jp/watch/${normalizedId}`;
+  // Preserve the exact identifier as written (do not rewrite nm/so to sm)
+  const id = match[1];
+  const normalizedUrl = `https://www.nicovideo.jp/watch/${id}`;
   return {
     rawUrl: normalizedUrl,
     normalizedUrl,
-    videoId: normalizedId,
+    videoId: id,
     site: "nicovideo",
   };
 };

@@ -1,14 +1,20 @@
 English | [日本語](README_ja.md)
 
-# botnama
-
-<img src="public/icons/boicon.svg" width="128">
+<h1 align="center">botnama</h1>
+<br>
+<p align="center">
+   <img src="public/icons/boicon.svg" width="256" alt="botnama icon">
+</p>
 
 **botnama** is an OBS-integrated media bot that extracts video URLs from live stream comments (YouTube, Niconico Live, etc.), automatically downloads and plays requested videos. It seamlessly queues and plays requested videos during live streams.
 
+<p align="center">
+   <img src="docs/img/sample.jpg" alt="Sample OBS Overlay Screenshot">
+</p>
+
 ## Key Features
 
-- **Automatic URL Detection** — Extracts URLs from YouTube / Niconico / Bilibili / Custom Sites from comments
+- **Automatic URL Detection** — Detects URLs and plain-text identifiers in comments (e.g., `sm12345`, `BV…`) and normalizes them for playback (YouTube: `watch?v=VIDEOID`, `youtu.be/VIDEOID`, `shorts/ID`; Niconico: `sm`/`nm`/`so` IDs; Bilibili: `BV` IDs).
 - **Auto Download & Cache** — Automatically fetches and converts videos using `yt-dlp` and `ffmpeg`
 - **OBS Integration** — Integrates with OBS via browser dock (management interface) and browser source (playback overlay)
 - **Playback Control** — Supports stop, skip, seek, and other operations
@@ -201,7 +207,7 @@ deno task release
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**
 - **[ffmpeg](https://ffmpeg.org/)**
 - **[MultiCommentViewer](https://github.com/DaisukeDaisuke/MultiCommentViewer)**
-- **[mediabunny](https://www.npmjs.com/package/mediabunny)**
+- **[mediabunny](https://github.com/Vanilagy/mediabunny)**
 - **[ボトル/bobineKS](https://x.com/bobine_ks)**
 
 ---

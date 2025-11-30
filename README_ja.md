@@ -1,14 +1,20 @@
 [English](README.md) | 日本語
 
-# botnama
-
-<img src="public/icons/boicon.svg" width="128">
+<h1 align="center">botnama</h1>
+<br>
+<p align="center">
+   <img src="public/icons/boicon.svg" width="256" alt="botnama icon">
+</p>
 
 **botnama**は、YouTube・ニコニコ生放送などの配信コメントから動画URLを抽出し、自動ダウンロード・再生を行うOBS連携型メディアボットです。ライブ配信中のリクエスト動画を自動的にキューイングして、シームレスに再生することができます。
 
+<p align="center">
+   <img src="docs\img\sample.jpg"　alt="サンプル OBS スクリーンショット">
+</p>
+
 ## 主な機能
 
-- **動画URLの自動検出** — コメントから YouTube / ニコニコ / Bilibili / カスタムサイトの URL を抽出
+- **動画URLの自動検出** — コメント内の URL やプレーンテキストの識別子（例: `sm12345`, `BV…`）を検出・正規化して再生可能にします（YouTube: `watch?v=VIDEOID` / `youtu.be/VIDEOID` / `shorts/ID`  ニコニコ: `sm`/`nm`/`so` ID  Bilibili: `BV` IDのクエリ）。
 - **自動ダウンロード & キャッシュ** — `yt-dlp` と `ffmpeg` を使って動画を自動取得・変換
 - **OBS 連携** — ブラウザドック（管理画面）とブラウザソース（再生 Overlay）で OBS に統合
 - **再生管理** — 停止・スキップ・シークなどの操作が可能
@@ -201,7 +207,7 @@ deno task release
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**
 - **[ffmpeg](https://ffmpeg.org/)**
 - **[MultiCommentViewer](https://github.com/DaisukeDaisuke/MultiCommentViewer)**
-- **[mediabunny](https://www.npmjs.com/package/mediabunny)**
+- **[mediabunny](https://github.com/Vanilagy/mediabunny)**
 - **[ボトル/bobineKS](https://x.com/bobine_ks)**
 
 ---
