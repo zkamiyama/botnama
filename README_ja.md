@@ -132,6 +132,8 @@ botnama はブラウザの Cookie を登録することで、YouTube と ニコ�
 
 - `plugins/botnama` ディレクトリを MultiCommentViewer の `plugins/` ディレクトリにコピー
 
+**ダウンロード / リポジトリ**: [MultiCommentViewer Releases](https://github.com/DaisukeDaisuke/MultiCommentViewer/releases)
+
 2. **設定（任意）**
 
 - **botnama 側**: `config/settings.toml` の `mcvAccessToken` に任意の値を設定

@@ -128,9 +128,11 @@ botnama can integrate with YouTube and Niconico Live by registering browser cook
 
 ## MultiCommentViewer Integration
 
-1. **Place Plugin**
+1. **Place plugin**
 
-- Copy the `plugins/botnama` directory to MultiCommentViewer's `plugins/` directory
+- Copy the `plugins/botnama` directory into the MultiCommentViewer `plugins/` directory
+
+**Download / Repository**: [MultiCommentViewer Releases](https://github.com/DaisukeDaisuke/MultiCommentViewer/releases)
 
 2. **Configuration (Optional)**
 
