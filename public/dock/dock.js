@@ -2718,7 +2718,7 @@ const setActiveTab = (tab) => {
     panel.classList.toggle("active", key === tab);
   });
   if (tab === "stock") {
-    loadStock(currentStockName).catch((err) => console.warn("[stock] load failed", err));
+    loadStock(currentStockName, { preserveDirty: true }).catch((err) => console.warn("[stock] load failed", err));
   }
 };
 
