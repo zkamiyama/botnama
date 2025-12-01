@@ -31,6 +31,7 @@ out/
 temp/
 release/
 tmp/
+docs/dev
 # App specific runtime caches and media files
 cache/
 cache/videos/**
