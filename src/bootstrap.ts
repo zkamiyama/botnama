@@ -4,6 +4,8 @@ import { PROJECT_ROOT } from "./settings.ts";
 import JSZip from "jszip";
 import { ServerSettings } from "./types.ts";
 
+const MIN_DENO_VERSION = "2.0.0";
+const DENO_RELEASE_API = "https://api.github.com/repos/denoland/deno/releases/latest";
 
 const GITHUB_JSON_HEADERS = {
   "user-agent": "botnama-app",
@@ -124,6 +126,21 @@ const containsAll = (...needles: string[]): AssetMatcher => {
   };
 };
 
+const DENO_ASSET_MATCHERS: Record<KnownOS, Record<string, AssetMatcher[]>> = {
+  windows: {
+    x86_64: [containsAll("x86_64", "pc-windows-msvc", ".zip")],
+    aarch64: [containsAll("aarch64", "pc-windows-msvc", ".zip")],
+  },
+  linux: {},
+  darwin: {},
+};
+
+const normalizeZipPath = (path: string) => path.replace(/\\/g, "/");
+const exactPathMatcher = (target: string): AssetMatcher =>
+  (name: string) => normalizeZipPath(name) === normalizeZipPath(target);
+const endsWithPathMatcher = (suffix: string): AssetMatcher =>
+  (name: string) => normalizeZipPath(name).endsWith(normalizeZipPath(suffix));
+
 const FFMPEG_ASSET_MATCHERS: Record<string, Record<string, AssetMatcher[]>> = {
   windows: {
     x86_64: [
@@ -180,22 +197,13 @@ const ensureBinary = async (
 const stripArchiveExtension = (name: string) =>
   name.replace(/\.tar\.xz$/i, "").replace(/\.zip$/i, "");
 
-const extractBinaryFromZip = async (archive: Uint8Array, relativePath: string) => {
+const extractBinaryFromZip = async (archive: Uint8Array, matchers: AssetMatcher[], label: string) => {
   const zip = await JSZip.loadAsync(archive);
-  const normalized = relativePath.replace(/\\/g, "/");
-  let entry: JSZip.JSZipObject | undefined = zip.files[normalized];
+  let entry: JSZip.JSZipObject | undefined = Object.values(zip.files).find((file) =>
+    !file.dir && matchers.some((matcher) => matcher(normalizeZipPath(file.name)))
+  );
   if (!entry) {
-    entry = Object.values(zip.files).find((file) =>
-      !file.dir && file.name.replace(/\\/g, "/").endsWith("/bin/ffmpeg")
-    );
-  }
-  if (!entry && Deno.build.os === "windows") {
-    entry = Object.values(zip.files).find((file) =>
-      !file.dir && file.name.replace(/\\/g, "/").endsWith("/bin/ffmpeg.exe")
-    );
-  }
-  if (!entry) {
-    throw new Error(`Could not locate ffmpeg binary (${relativePath}) inside downloaded archive`);
+    throw new Error(`Could not locate ${label} inside downloaded archive`);
   }
   return await entry.async("uint8array");
 };
@@ -237,9 +245,53 @@ const selectFfmpegAsset = (assets: GithubReleaseAsset[]): GithubReleaseAsset | n
   return null;
 };
 
+const parseSemver = (value: string): [number, number, number] | null => {
+  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(value);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+};
+
+const compareSemver = (a: string, b: string) => {
+  const pa = parseSemver(a);
+  const pb = parseSemver(b);
+  if (!pa || !pb) return 0;
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] > pb[i]) return 1;
+    if (pa[i] < pb[i]) return -1;
+  }
+  return 0;
+};
+
+const detectDenoVersion = async (denoPath: string): Promise<string | null> => {
+  try {
+    const command = new Deno.Command(denoPath, { args: ["--version"], stdout: "piped", stderr: "piped" });
+    const { code, stdout } = await command.output();
+    if (code !== 0) return null;
+    const text = new TextDecoder().decode(stdout);
+    const match = /deno\s+(\d+\.\d+\.\d+)/i.exec(text);
+    return match?.[1] ?? null;
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return null;
+    console.warn(`[bootstrap] Failed to check Deno version via ${denoPath}:`, err);
+    return null;
+  }
+};
+
+const selectDenoAsset = (assets: GithubReleaseAsset[]): GithubReleaseAsset | null => {
+  const osMatchers = DENO_ASSET_MATCHERS[Deno.build.os as string];
+  if (!osMatchers) return null;
+  const archMatchers = osMatchers[Deno.build.arch as string] ?? osMatchers.x86_64 ?? [];
+  for (const matcher of archMatchers) {
+    const asset = assets.find((candidate) => matcher(candidate.name));
+    if (asset) return asset;
+  }
+  return null;
+};
+
 export const bootstrapEnvironment = async (settings: ServerSettings) => {
   const cacheDir = toAbsolutePath(settings.cacheDir);
   ensureDirSync(cacheDir);
+  await ensureDenoBinary(settings);
   await ensureYtDlpBinary(settings);
   await ensureFfmpegBinary(settings);
 };
@@ -272,7 +324,15 @@ export const ensureFfmpegBinary = async (settings: ServerSettings, force = false
 
   let binary: Uint8Array;
   if (asset.name.endsWith(".zip")) {
-    binary = await extractBinaryFromZip(archiveBytes, binaryPathInArchive);
+    binary = await extractBinaryFromZip(
+      archiveBytes,
+      [
+        exactPathMatcher(binaryPathInArchive),
+        endsWithPathMatcher("/bin/ffmpeg"),
+        endsWithPathMatcher("/bin/ffmpeg.exe"),
+      ],
+      "ffmpeg binary",
+    );
   } else if (asset.name.endsWith(".tar.xz")) {
     binary = await extractBinaryFromTarXz(archiveBytes, binaryPathInArchive);
   } else {
@@ -288,3 +348,44 @@ export const ensureFfmpegBinary = async (settings: ServerSettings, force = false
 };
 
 export const resolveProjectPath = toAbsolutePath;
+
+export const ensureDenoBinary = async (settings: ServerSettings, force = false) => {
+  if (Deno.build.os !== "windows") return;
+  const localDenoPath = join(PROJECT_ROOT, "bin", "deno.exe");
+  const candidates = [settings.denoPath, localDenoPath].filter(Boolean) as string[];
+  for (const candidate of candidates) {
+    const version = await detectDenoVersion(candidate);
+    if (!force && version && compareSemver(version, MIN_DENO_VERSION) >= 0) {
+      settings.denoPath = candidate;
+      return;
+    }
+  }
+
+  const release = await fetchGithubJson<GithubRelease>(DENO_RELEASE_API);
+  const asset = selectDenoAsset(release.assets);
+  if (!asset) {
+    console.warn(
+      `[bootstrap] No Deno asset found for ${Deno.build.os}/${Deno.build.arch} in latest release`,
+    );
+    return;
+  }
+
+  const archiveBytes = await fetchBinary(asset.browser_download_url, {
+    headers: GITHUB_BINARY_HEADERS,
+  });
+  const archiveRoot = stripArchiveExtension(asset.name);
+  const binary = await extractBinaryFromZip(
+    archiveBytes,
+    [
+      exactPathMatcher(`${archiveRoot}/deno.exe`),
+      endsWithPathMatcher("/deno.exe"),
+      exactPathMatcher("deno.exe"),
+    ],
+    "Deno binary",
+  );
+
+  ensureDirSync(dirname(localDenoPath));
+  await Deno.writeFile(localDenoPath, binary);
+  settings.denoPath = localDenoPath;
+  console.log(`[bootstrap] deno ready at ${localDenoPath}`);
+};
